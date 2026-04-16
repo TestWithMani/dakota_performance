@@ -72,18 +72,16 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             python3 -m venv ${VENV_DIR}
-                            . ${VENV_DIR}/bin/activate
-                            python -m pip install --upgrade pip
-                            pip install -r salesforce_tab_performance/requirements.txt
-                            pip install pytest-html pytest-json-report
+                            ${VENV_DIR}/bin/python -m pip install --upgrade pip
+                            ${VENV_DIR}/bin/python -m pip install -r salesforce_tab_performance/requirements.txt
+                            ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest
                         '''
                     } else {
                         bat '''
                             py -m venv %VENV_DIR%
-                            call %VENV_DIR%\\Scripts\\activate
-                            python -m pip install --upgrade pip
-                            pip install -r salesforce_tab_performance/requirements.txt
-                            pip install pytest-html pytest-json-report
+                            %VENV_DIR%\\Scripts\\python -m pip install --upgrade pip
+                            %VENV_DIR%\\Scripts\\python -m pip install -r salesforce_tab_performance/requirements.txt
+                            %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest
                         '''
                     }
                 }
@@ -120,15 +118,13 @@ pipeline {
                     }
                     if (isUnix()) {
                         sh '''
-                            . ${VENV_DIR}/bin/activate
-                            pytest --version
-                            pytest --markers
+                            ${VENV_DIR}/bin/python -m pytest --version
+                            ${VENV_DIR}/bin/python -m pytest --markers
                         '''
                     } else {
                         bat '''
-                            call %VENV_DIR%\\Scripts\\activate
-                            pytest --version
-                            pytest --markers
+                            %VENV_DIR%\\Scripts\\python -m pytest --version
+                            %VENV_DIR%\\Scripts\\python -m pytest --markers
                         '''
                     }
                 }
@@ -139,7 +135,7 @@ pipeline {
             steps {
                 script {
                     def runCmd = buildPytestCommand(params.TEST_SCOPE as String, params.PYTEST_MARKER as String, params.RUN_ALLURE as boolean)
-                    echo "Pytest command: ${runCmd}"
+                    echo "Pytest command: pytest ${runCmd}"
 
                     withCredentials([usernamePassword(
                         credentialsId: "${params.SF_CREDENTIALS_ID}",
@@ -148,13 +144,11 @@ pipeline {
                     )]) {
                         if (isUnix()) {
                             sh """
-                                . ${VENV_DIR}/bin/activate
-                                ${runCmd}
+                                ${VENV_DIR}/bin/python -m pytest ${runCmd}
                             """
                         } else {
                             bat """
-                                call %VENV_DIR%\\Scripts\\activate
-                                ${runCmd}
+                                %VENV_DIR%\\Scripts\\python -m pytest ${runCmd}
                             """
                         }
                     }
@@ -180,7 +174,8 @@ pipeline {
                         allowMissing: true
                     ])
 
-                    if (params.RUN_ALLURE && fileExists(env.ALLURE_DIR)) {
+                    def allureFiles = fileExists(env.ALLURE_DIR) ? findFiles(glob: "${env.ALLURE_DIR}/**/*") : []
+                    if (params.RUN_ALLURE && allureFiles && allureFiles.length > 0) {
                         allure([
                             includeProperties: false,
                             jdk: '',
@@ -189,6 +184,8 @@ pipeline {
                             results: [[path: env.ALLURE_DIR]],
                             reportName: 'Allure Report'
                         ])
+                    } else if (params.RUN_ALLURE) {
+                        echo "Skipping Allure publish: no result files found in ${env.ALLURE_DIR}"
                     }
                 }
             }
@@ -217,7 +214,7 @@ pipeline {
 }
 
 def buildPytestCommand(String scope, String marker, boolean runAllure) {
-    def base = 'pytest -q'
+    def base = ''
     def selector = ''
 
     if (scope == 'smoke') {
@@ -229,7 +226,27 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
     }
 
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
-    return "${base} ${selector} ${allureArg} --junitxml=${env.PYTEST_JUNIT} --html=${env.PYTEST_HTML} --self-contained-html --json-report --json-report-file=${env.PYTEST_JSON}"
+    def parts = []
+
+    if (base) {
+        parts << base
+    }
+    parts << '-q'
+
+    if (selector) {
+        parts << selector
+    }
+    if (allureArg) {
+        parts << allureArg
+    }
+
+    parts << "--junitxml=${env.PYTEST_JUNIT}"
+    parts << "--html=${env.PYTEST_HTML}"
+    parts << '--self-contained-html'
+    parts << '--json-report'
+    parts << "--json-report-file=${env.PYTEST_JSON}"
+
+    return parts.join(' ')
 }
 
 def getTestStatistics() {
@@ -240,9 +257,10 @@ def getTestStatistics() {
     if (fileExists(reportPath)) {
         try {
             def report = new groovy.json.JsonSlurper().parseText(readFile(reportPath))
-            stats.passed = (report?.summary?.passed ?: 0) as int
-            stats.failed = (report?.summary?.failed ?: 0) as int
-            stats.skipped = (report?.summary?.skipped ?: 0) as int
+            def summary = report?.summary ?: report
+            stats.passed = (summary?.passed ?: 0) as int
+            stats.failed = (summary?.failed ?: 0) as int
+            stats.skipped = (summary?.skipped ?: 0) as int
             stats.total = stats.passed + stats.failed + stats.skipped
         } catch (Exception ex) {
             echo "Could not parse pytest JSON report: ${ex.message}"
@@ -287,12 +305,15 @@ Skipped: ${stats.skipped}
 
 def sendEmailNotification(String buildStatus) {
     def stats = getTestStatistics()
-    def actualStatus = buildStatus
+    def actualStatus = currentBuild.result ?: buildStatus
 
-    if (stats.total > 0) {
-        if (stats.failed > 0) {
+    // Preserve Jenkins infra/build failures as source of truth.
+    if (!(actualStatus in ['FAILURE', 'ABORTED'])) {
+        if (stats.total == 0) {
+            actualStatus = 'UNSTABLE'
+        } else if (stats.failed > 0) {
             actualStatus = 'FAILURE'
-        } else if (stats.passed > 0) {
+        } else {
             actualStatus = 'SUCCESS'
         }
     }
@@ -318,11 +339,12 @@ def sendEmailNotification(String buildStatus) {
     def artifactBase = "${jobUrl}artifact/"
     def excelRelPath = 'salesforce_tab_performance/performance_results.xlsx'
     def excelExists = fileExists(excelRelPath)
+    echo "Excel exists: ${excelExists}"
     def excelArtifactUrl = "${artifactBase}${excelRelPath}"
     def htmlReportUrl = "${artifactBase}test-results/report.html"
     def allureUrl = "${jobUrl}allure"
     def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
-    def triggeredBy = env.BUILD_USER_ID ?: 'Jenkins'
+    def triggeredBy = env.BUILD_USER ?: env.BUILD_USER_ID ?: 'Jenkins'
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
 
     def statusCfg = [
@@ -390,10 +412,10 @@ def sendEmailNotification(String buildStatus) {
 
               <h3 style="margin:16px 0 10px;color:#0f172a;">Reports</h3>
               <table width="100%" cellpadding="8" cellspacing="0" style="font-size:14px;">
-                <tr><td width="32%"><strong>Build</strong></td><td><a href="${jobUrl}">${jobUrl}</a></td></tr>
-                <tr><td><strong>HTML Report</strong></td><td><a href="${htmlReportUrl}">test-results/report.html</a></td></tr>
-                <tr><td><strong>Allure Report</strong></td><td><a href="${allureUrl}">${allureUrl}</a></td></tr>
-                <tr><td><strong>Excel Artifact</strong></td><td>${excelExists ? "<a href='${excelArtifactUrl}'>performance_results.xlsx</a>" : "Not generated in this run"}</td></tr>
+                <tr><td width="32%"><strong>Build</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${jobUrl}">${jobUrl}</a></td></tr>
+                <tr><td><strong>HTML Report</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${htmlReportUrl}">test-results/report.html</a></td></tr>
+                <tr><td><strong>Allure Report</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${allureUrl}">${allureUrl}</a></td></tr>
+                <tr><td><strong>Excel Artifact</strong></td><td>${excelExists ? "<a style='color:#2563eb;text-decoration:underline;' href='${excelArtifactUrl}'>performance_results.xlsx</a>" : "Not generated in this run"}</td></tr>
               </table>
             </td>
           </tr>
