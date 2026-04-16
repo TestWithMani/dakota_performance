@@ -135,8 +135,17 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'allure-results/**, salesforce_tab_performance/performance_results.xlsx', allowEmptyArchive: true
-            junit testResults: 'test-results/pytest.xml', allowEmptyResults: true
+            script {
+                if (fileExists('allure-results')) {
+                    archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
+                }
+                if (fileExists('salesforce_tab_performance/performance_results.xlsx')) {
+                    archiveArtifacts artifacts: 'salesforce_tab_performance/performance_results.xlsx', allowEmptyArchive: true
+                }
+                if (fileExists('test-results/pytest.xml')) {
+                    junit testResults: 'test-results/pytest.xml', allowEmptyResults: true
+                }
+            }
         }
     }
 }
