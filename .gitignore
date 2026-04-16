@@ -1,0 +1,14 @@
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+allure-results/
+allure-report/
+salesforce_tab_performance/performance_results.xlsx
+salesforce_tab_performance/.env
