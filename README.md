@@ -101,6 +101,14 @@ Core runtime settings are in `salesforce_tab_performance/config.py`:
 
 See `CONTRIBUTING.md` for branch, testing, and PR guidance.
 
+## CI/CD (Jenkins)
+
+This repository includes a root `Jenkinsfile` with a professional, parameterized pipeline.
+
+- Local Jenkins setup guide: `docs/JENKINS_SETUP.md`
+- Supports: `collect-only`, `smoke`, `marker`, and `full` scopes
+- Archives JUnit + Allure + Excel artifacts
+
 ## License
 
 This project is licensed under the MIT License. See `LICENSE`.
