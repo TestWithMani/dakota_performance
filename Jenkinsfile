@@ -69,21 +69,20 @@ pipeline {
         stage('Setup Python Environment') {
             steps {
                 script {
-                    if (isUnix()) {
-                        sh '''
+                    runShell(
+                        '''
                             python3 -m venv ${VENV_DIR}
                             ${VENV_DIR}/bin/python -m pip install --upgrade pip
                             ${VENV_DIR}/bin/python -m pip install -r salesforce_tab_performance/requirements.txt
                             ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest
+                        ''',
                         '''
-                    } else {
-                        bat '''
                             py -m venv %VENV_DIR%
                             %VENV_DIR%\\Scripts\\python -m pip install --upgrade pip
                             %VENV_DIR%\\Scripts\\python -m pip install -r salesforce_tab_performance/requirements.txt
                             %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest
                         '''
-                    }
+                    )
                 }
             }
         }
@@ -91,19 +90,18 @@ pipeline {
         stage('Prepare Report Directories') {
             steps {
                 script {
-                    if (isUnix()) {
-                        sh '''
+                    runShell(
+                        '''
                             rm -rf test-results allure-results || true
                             mkdir -p test-results allure-results
+                        ''',
                         '''
-                    } else {
-                        bat '''
                             if exist test-results rmdir /s /q test-results
                             if exist allure-results rmdir /s /q allure-results
                             mkdir test-results
                             mkdir allure-results
                         '''
-                    }
+                    )
                 }
             }
         }
@@ -112,21 +110,15 @@ pipeline {
             steps {
                 script {
                     if (params.TEST_SCOPE == 'marker') {
+                        if (!params.PYTEST_MARKER?.trim()) {
+                            error('PYTEST_MARKER must be provided when TEST_SCOPE=marker.')
+                        }
                         echo "Marker mode selected -> running marker: ${params.PYTEST_MARKER}"
                     } else {
                         echo "Scope selected -> ${params.TEST_SCOPE} (marker parameter ignored)"
                     }
-                    if (isUnix()) {
-                        sh '''
-                            ${VENV_DIR}/bin/python -m pytest --version
-                            ${VENV_DIR}/bin/python -m pytest --markers
-                        '''
-                    } else {
-                        bat '''
-                            %VENV_DIR%\\Scripts\\python -m pytest --version
-                            %VENV_DIR%\\Scripts\\python -m pytest --markers
-                        '''
-                    }
+                    runPytest('--version')
+                    runPytest('--markers')
                 }
             }
         }
@@ -142,15 +134,7 @@ pipeline {
                         usernameVariable: 'SF_USERNAME',
                         passwordVariable: 'SF_PASSWORD'
                     )]) {
-                        if (isUnix()) {
-                            sh """
-                                ${VENV_DIR}/bin/python -m pytest ${runCmd}
-                            """
-                        } else {
-                            bat """
-                                %VENV_DIR%\\Scripts\\python -m pytest ${runCmd}
-                            """
-                        }
+                        runPytest(runCmd)
                     }
 
                     logTestSummaryToConsole('Post test execution')
@@ -174,8 +158,7 @@ pipeline {
                         allowMissing: true
                     ])
 
-                    def allureFiles = fileExists(env.ALLURE_DIR) ? findFiles(glob: "${env.ALLURE_DIR}/**/*") : []
-                    if (params.RUN_ALLURE && allureFiles && allureFiles.length > 0) {
+                    if (params.RUN_ALLURE && fileExists(env.ALLURE_DIR)) {
                         allure([
                             includeProperties: false,
                             jdk: '',
@@ -185,7 +168,7 @@ pipeline {
                             reportName: 'Allure Report'
                         ])
                     } else if (params.RUN_ALLURE) {
-                        echo "Skipping Allure publish: no result files found in ${env.ALLURE_DIR}"
+                        echo "Skipping Allure publish: ${env.ALLURE_DIR} directory not found."
                     }
                 }
             }
@@ -214,7 +197,6 @@ pipeline {
 }
 
 def buildPytestCommand(String scope, String marker, boolean runAllure) {
-    def base = ''
     def selector = ''
 
     if (scope == 'smoke') {
@@ -228,9 +210,6 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
     def parts = []
 
-    if (base) {
-        parts << base
-    }
     parts << '-q'
 
     if (selector) {
@@ -247,6 +226,25 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
     parts << "--json-report-file=${env.PYTEST_JSON}"
 
     return parts.join(' ')
+}
+
+def runShell(String unixCommand, String windowsCommand) {
+    if (isUnix()) {
+        sh(unixCommand)
+    } else {
+        bat(windowsCommand)
+    }
+}
+
+def runPytest(String args) {
+    runShell(
+        """
+            ${env.VENV_DIR}/bin/python -m pytest ${args}
+        """,
+        """
+            %VENV_DIR%\\Scripts\\python -m pytest ${args}
+        """
+    )
 }
 
 def getTestStatistics() {
