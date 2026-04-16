@@ -12,13 +12,13 @@ pipeline {
     parameters {
         choice(
             name: 'TEST_SCOPE',
-            choices: ['collect-only', 'smoke', 'marker', 'full'],
-            description: 'collect-only validates discovery only. marker runs selected marker category.'
+            choices: ['smoke', 'marker', 'full'],
+            description: 'Execution profile: smoke (fast), marker (single category), full (entire suite).'
         )
         choice(
             name: 'PYTEST_MARKER',
             choices: ['reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
-            description: 'Used when TEST_SCOPE=marker.'
+            description: 'Category marker used only when TEST_SCOPE=marker.'
         )
         booleanParam(
             name: 'RUN_ALLURE',
@@ -116,20 +116,14 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             . ${VENV_DIR}/bin/activate
-                            pytest -q --collect-only
-                            pytest -q -m smoke --collect-only
-                            pytest -q -m metro_areas --collect-only
-                            pytest -q -m reports --collect-only
-                            pytest -q -m custom_dashboards --collect-only
+                            pytest --version
+                            pytest --markers
                         '''
                     } else {
                         bat '''
                             call %VENV_DIR%\\Scripts\\activate
-                            pytest -q --collect-only
-                            pytest -q -m smoke --collect-only
-                            pytest -q -m metro_areas --collect-only
-                            pytest -q -m reports --collect-only
-                            pytest -q -m custom_dashboards --collect-only
+                            pytest --version
+                            pytest --markers
                         '''
                     }
                 }
@@ -142,8 +136,11 @@ pipeline {
                     def runCmd = buildPytestCommand(params.TEST_SCOPE as String, params.PYTEST_MARKER as String, params.RUN_ALLURE as boolean)
                     echo "Pytest command: ${runCmd}"
 
-                    if (params.TEST_SCOPE == 'collect-only') {
-                        // Keep collect-only fast and deterministic for CI smoke checks.
+                    withCredentials([usernamePassword(
+                        credentialsId: "${params.SF_CREDENTIALS_ID}",
+                        usernameVariable: 'SF_USERNAME',
+                        passwordVariable: 'SF_PASSWORD'
+                    )]) {
                         if (isUnix()) {
                             sh """
                                 . ${VENV_DIR}/bin/activate
@@ -154,24 +151,6 @@ pipeline {
                                 call %VENV_DIR%\\Scripts\\activate
                                 ${runCmd}
                             """
-                        }
-                    } else {
-                        withCredentials([usernamePassword(
-                            credentialsId: "${params.SF_CREDENTIALS_ID}",
-                            usernameVariable: 'SF_USERNAME',
-                            passwordVariable: 'SF_PASSWORD'
-                        )]) {
-                            if (isUnix()) {
-                                sh """
-                                    . ${VENV_DIR}/bin/activate
-                                    ${runCmd}
-                                """
-                            } else {
-                                bat """
-                                    call %VENV_DIR%\\Scripts\\activate
-                                    ${runCmd}
-                                """
-                            }
                         }
                     }
                 }
@@ -237,10 +216,8 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
         selector = '-m smoke'
     } else if (scope == 'marker') {
         selector = "-m ${marker}"
-    } else if (scope == 'full') {
-        selector = ''
     } else {
-        selector = '--collect-only'
+        selector = ''
     }
 
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
