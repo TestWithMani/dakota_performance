@@ -13,37 +13,37 @@ pipeline {
         choice(
             name: 'TEST_SCOPE',
             choices: ['smoke', 'marker', 'full'],
-            description: 'Execution profile: smoke (fast), marker (single category), full (entire suite).'
+            description: 'Execution mode: smoke (fast sanity), marker (one category), full (complete regression).'
         )
         choice(
             name: 'PYTEST_MARKER',
             choices: ['reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
-            description: 'Category marker used only when TEST_SCOPE=marker.'
+            description: 'Category to run when TEST_SCOPE=marker. Ignored for smoke/full.'
         )
         booleanParam(
             name: 'RUN_ALLURE',
             defaultValue: true,
-            description: 'Publish Allure report (requires Allure Jenkins plugin).'
+            description: 'Publish Allure report in Jenkins (requires Allure plugin installed).'
         )
         booleanParam(
             name: 'SEND_EMAIL',
             defaultValue: true,
-            description: 'Send HTML email notification after build.'
+            description: 'Send HTML email summary when pipeline finishes.'
         )
         string(
             name: 'ADDITIONAL_EMAILS',
             defaultValue: '',
-            description: 'Optional comma-separated recipients.'
+            description: 'Optional extra recipients (comma-separated). Example: qa@company.com, manager@company.com'
         )
         string(
             name: 'DEFAULT_EMAIL',
             defaultValue: 'usman.arshad@rolustech.com',
-            description: 'Primary notification recipient.'
+            description: 'Primary email recipient for build notifications.'
         )
         string(
             name: 'SF_CREDENTIALS_ID',
             defaultValue: 'sf-marketplace-creds',
-            description: 'Jenkins Username/Password credentials ID for Salesforce login.'
+            description: 'Jenkins Username/Password credential ID used for Salesforce login.'
         )
     }
 
@@ -113,6 +113,11 @@ pipeline {
         stage('Static Validation') {
             steps {
                 script {
+                    if (params.TEST_SCOPE == 'marker') {
+                        echo "Marker mode selected -> running marker: ${params.PYTEST_MARKER}"
+                    } else {
+                        echo "Scope selected -> ${params.TEST_SCOPE} (marker parameter ignored)"
+                    }
                     if (isUnix()) {
                         sh '''
                             . ${VENV_DIR}/bin/activate
