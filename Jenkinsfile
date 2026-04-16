@@ -158,6 +158,8 @@ pipeline {
                             """
                         }
                     }
+
+                    logTestSummaryToConsole('Post test execution')
                 }
             }
         }
@@ -196,6 +198,7 @@ pipeline {
     post {
         always {
             script {
+                logTestSummaryToConsole('Post pipeline summary')
                 if (fileExists('test-results')) {
                     archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
                 }
@@ -232,22 +235,54 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
 def getTestStatistics() {
     def stats = [total: 0, passed: 0, failed: 0, skipped: 0]
     def reportPath = env.PYTEST_JSON ?: 'test-results/report.json'
+    def junitPath = env.PYTEST_JUNIT ?: 'test-results/pytest.xml'
 
-    if (!fileExists(reportPath)) {
-        return stats
+    if (fileExists(reportPath)) {
+        try {
+            def report = new groovy.json.JsonSlurper().parseText(readFile(reportPath))
+            stats.passed = (report?.summary?.passed ?: 0) as int
+            stats.failed = (report?.summary?.failed ?: 0) as int
+            stats.skipped = (report?.summary?.skipped ?: 0) as int
+            stats.total = stats.passed + stats.failed + stats.skipped
+        } catch (Exception ex) {
+            echo "Could not parse pytest JSON report: ${ex.message}"
+        }
+    } else {
+        echo "Pytest JSON report not found at ${reportPath}; trying JUnit fallback."
     }
 
-    try {
-        def report = new groovy.json.JsonSlurper().parseText(readFile(reportPath))
-        stats.passed = (report?.summary?.passed ?: 0) as int
-        stats.failed = (report?.summary?.failed ?: 0) as int
-        stats.skipped = (report?.summary?.skipped ?: 0) as int
-        stats.total = stats.passed + stats.failed + stats.skipped
-    } catch (Exception ex) {
-        echo "Could not parse pytest JSON report: ${ex.message}"
+    if (stats.total == 0 && fileExists(junitPath)) {
+        try {
+            def xml = new XmlSlurper(false, false).parseText(readFile(junitPath))
+            def tests = (xml.@tests?.toString() ?: '0') as int
+            def failures = (xml.@failures?.toString() ?: '0') as int
+            def errors = (xml.@errors?.toString() ?: '0') as int
+            def skipped = (xml.@skipped?.toString() ?: '0') as int
+            def passed = Math.max(tests - failures - errors - skipped, 0)
+
+            stats.total = tests
+            stats.failed = failures + errors
+            stats.skipped = skipped
+            stats.passed = passed
+            echo "Using JUnit fallback stats -> total:${stats.total}, passed:${stats.passed}, failed:${stats.failed}, skipped:${stats.skipped}"
+        } catch (Exception ex) {
+            echo "Could not parse JUnit XML fallback: ${ex.message}"
+        }
     }
 
     return stats
+}
+
+def logTestSummaryToConsole(String label = 'Test summary') {
+    def stats = getTestStatistics()
+    echo """
+================ ${label} ================
+Total  : ${stats.total}
+Passed : ${stats.passed}
+Failed : ${stats.failed}
+Skipped: ${stats.skipped}
+==========================================
+""".stripIndent()
 }
 
 def sendEmailNotification(String buildStatus) {
