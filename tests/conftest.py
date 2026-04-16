@@ -48,9 +48,10 @@ def driver():
     web_driver.implicitly_wait(0)
     yield web_driver
     try:
-        web_driver.close()
-    finally:
         web_driver.quit()
+    except Exception:
+        # Browser process may already be gone for crashed/disconnected sessions.
+        pass
 
 
 def pytest_collection_modifyitems(items):
@@ -74,6 +75,15 @@ def pytest_collection_modifyitems(items):
 
         if "transaction" in file_name:
             item.add_marker(pytest.mark.transactions)
+
+        if "metro_area" in file_name or "metro_areas" in file_name:
+            item.add_marker(pytest.mark.metro_areas)
+
+        if "report" in file_name or "reports" in file_name:
+            item.add_marker(pytest.mark.reports)
+
+        if "dashboard" in file_name:
+            item.add_marker(pytest.mark.custom_dashboards)
 
 
 @pytest.hookimpl(hookwrapper=True)
