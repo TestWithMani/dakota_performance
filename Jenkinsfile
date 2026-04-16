@@ -251,6 +251,10 @@ def sendEmailNotification(String resultStatus) {
 
     def markerInfo = params.TEST_SCOPE == 'marker' ? params.PYTEST_MARKER : 'N/A'
     def jobUrl = env.BUILD_URL ?: ''
+    def excelRelPath = 'salesforce_tab_performance/performance_results.xlsx'
+    def excelExists = fileExists(excelRelPath)
+    def artifactBase = "${jobUrl}artifact/"
+    def excelArtifactUrl = "${artifactBase}${excelRelPath}"
     def subject = "[Dakota Performance] ${resultStatus} - ${env.JOB_NAME} #${env.BUILD_NUMBER}"
     def body = """
     <html>
@@ -263,18 +267,30 @@ def sendEmailNotification(String resultStatus) {
         <p><b>Marker:</b> ${markerInfo}</p>
         <p><b>Allure Enabled:</b> ${params.RUN_ALLURE}</p>
         <p><b>Build URL:</b> <a href="${jobUrl}">${jobUrl}</a></p>
+        <p><b>Excel Artifact:</b> ${excelExists ? "<a href='${excelArtifactUrl}'>performance_results.xlsx</a>" : "Not generated in this run"}</p>
         <hr/>
         <p>Reports are attached/published in Jenkins artifacts and report tabs.</p>
       </body>
     </html>
     """
-
-    emailext(
-        to: recipients.join(', '),
-        subject: subject,
-        body: body,
-        mimeType: 'text/html',
-        attachLog: true,
-        compressLog: true
-    )
+    if (excelExists) {
+        emailext(
+            to: recipients.join(', '),
+            subject: subject,
+            body: body,
+            mimeType: 'text/html',
+            attachLog: true,
+            compressLog: true,
+            attachmentsPattern: excelRelPath
+        )
+    } else {
+        emailext(
+            to: recipients.join(', '),
+            subject: subject,
+            body: body,
+            mimeType: 'text/html',
+            attachLog: true,
+            compressLog: true
+        )
+    }
 }
