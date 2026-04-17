@@ -6,6 +6,7 @@ pipeline {
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '30'))
         timeout(time: 90, unit: 'MINUTES')
+        ansiColor('xterm')
     }
 
     parameters {
@@ -76,24 +77,7 @@ pipeline {
                             ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest
                         ''',
                         '''
-                            set "PYTHON_CMD="
-                            for %%P in (py python python3) do (
-                                if not defined PYTHON_CMD (
-                                    where %%P >nul 2>nul
-                                    if not errorlevel 1 (
-                                        %%P --version >nul 2>nul
-                                        if not errorlevel 1 set "PYTHON_CMD=%%P"
-                                    )
-                                )
-                            )
-                            if not defined PYTHON_CMD (
-                                echo ERROR: Python interpreter not found on PATH for Jenkins agent.
-                                echo Install Python and ensure one of these commands is available: py, python, or python3.
-                                exit /b 1
-                            )
-                            echo Using Python launcher: %PYTHON_CMD%
-                            %PYTHON_CMD% --version
-                            %PYTHON_CMD% -m venv %VENV_DIR%
+                            py -m venv %VENV_DIR%
                             %VENV_DIR%\\Scripts\\python -m pip install --upgrade pip
                             %VENV_DIR%\\Scripts\\python -m pip install -r salesforce_tab_performance/requirements.txt
                             %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest
