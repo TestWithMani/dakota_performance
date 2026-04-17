@@ -77,9 +77,15 @@ pipeline {
                         ''',
                         '''
                             set "PYTHON_CMD="
-                            where py >nul 2>nul && set "PYTHON_CMD=py"
-                            if not defined PYTHON_CMD where python >nul 2>nul && set "PYTHON_CMD=python"
-                            if not defined PYTHON_CMD where python3 >nul 2>nul && set "PYTHON_CMD=python3"
+                            for %%P in (py python python3) do (
+                                if not defined PYTHON_CMD (
+                                    where %%P >nul 2>nul
+                                    if not errorlevel 1 (
+                                        %%P --version >nul 2>nul
+                                        if not errorlevel 1 set "PYTHON_CMD=%%P"
+                                    )
+                                )
+                            )
                             if not defined PYTHON_CMD (
                                 echo ERROR: Python interpreter not found on PATH for Jenkins agent.
                                 echo Install Python and ensure one of these commands is available: py, python, or python3.
