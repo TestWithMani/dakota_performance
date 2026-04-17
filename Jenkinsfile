@@ -76,7 +76,18 @@ pipeline {
                             ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest
                         ''',
                         '''
-                            py -m venv %VENV_DIR%
+                            set "PYTHON_CMD="
+                            where py >nul 2>nul && set "PYTHON_CMD=py"
+                            if not defined PYTHON_CMD where python >nul 2>nul && set "PYTHON_CMD=python"
+                            if not defined PYTHON_CMD where python3 >nul 2>nul && set "PYTHON_CMD=python3"
+                            if not defined PYTHON_CMD (
+                                echo ERROR: Python interpreter not found on PATH for Jenkins agent.
+                                echo Install Python and ensure one of these commands is available: py, python, or python3.
+                                exit /b 1
+                            )
+                            echo Using Python launcher: %PYTHON_CMD%
+                            %PYTHON_CMD% --version
+                            %PYTHON_CMD% -m venv %VENV_DIR%
                             %VENV_DIR%\\Scripts\\python -m pip install --upgrade pip
                             %VENV_DIR%\\Scripts\\python -m pip install -r salesforce_tab_performance/requirements.txt
                             %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest
