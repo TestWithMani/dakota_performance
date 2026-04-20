@@ -133,7 +133,9 @@ pipeline {
                         usernameVariable: 'SF_USERNAME',
                         passwordVariable: 'SF_PASSWORD'
                     )]) {
-                        runPytest(runCmd)
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            runPytest(runCmd)
+                        }
                     }
 
                     logTestSummaryToConsole('Post test execution')
@@ -253,11 +255,10 @@ def getTestStatistics() {
 
     if (fileExists(reportPath)) {
         try {
-            def report = new groovy.json.JsonSlurper().parseText(readFile(reportPath))
-            def summary = report?.summary ?: report
-            stats.passed = (summary?.passed ?: 0) as int
-            stats.failed = (summary?.failed ?: 0) as int
-            stats.skipped = (summary?.skipped ?: 0) as int
+            def jsonText = readFile(reportPath)
+            stats.passed = extractIntFromJson(jsonText, 'passed')
+            stats.failed = extractIntFromJson(jsonText, 'failed')
+            stats.skipped = extractIntFromJson(jsonText, 'skipped')
             stats.total = stats.passed + stats.failed + stats.skipped
         } catch (Exception ex) {
             echo "Could not parse pytest JSON report: ${ex.message}"
@@ -268,11 +269,11 @@ def getTestStatistics() {
 
     if (stats.total == 0 && fileExists(junitPath)) {
         try {
-            def xml = new XmlSlurper(false, false).parseText(readFile(junitPath))
-            def tests = (xml.@tests?.toString() ?: '0') as int
-            def failures = (xml.@failures?.toString() ?: '0') as int
-            def errors = (xml.@errors?.toString() ?: '0') as int
-            def skipped = (xml.@skipped?.toString() ?: '0') as int
+            def xmlText = readFile(junitPath)
+            def tests = extractIntFromXmlAttribute(xmlText, 'tests')
+            def failures = extractIntFromXmlAttribute(xmlText, 'failures')
+            def errors = extractIntFromXmlAttribute(xmlText, 'errors')
+            def skipped = extractIntFromXmlAttribute(xmlText, 'skipped')
             def passed = Math.max(tests - failures - errors - skipped, 0)
 
             stats.total = tests
@@ -286,6 +287,28 @@ def getTestStatistics() {
     }
 
     return stats
+}
+
+def extractIntFromJson(String jsonText, String key) {
+    if (!jsonText?.trim()) {
+        return 0
+    }
+    def matcher = (jsonText =~ /"${java.util.regex.Pattern.quote(key)}"\s*:\s*(\d+)/)
+    if (matcher.find()) {
+        return (matcher.group(1) ?: '0') as int
+    }
+    return 0
+}
+
+def extractIntFromXmlAttribute(String xmlText, String attr) {
+    if (!xmlText?.trim()) {
+        return 0
+    }
+    def matcher = (xmlText =~ /${java.util.regex.Pattern.quote(attr)}\s*=\s*["'](\d+)["']/)
+    if (matcher.find()) {
+        return (matcher.group(1) ?: '0') as int
+    }
+    return 0
 }
 
 def logTestSummaryToConsole(String label = 'Test summary') {
