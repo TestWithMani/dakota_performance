@@ -16,7 +16,7 @@ pipeline {
         )
         choice(
             name: 'PYTEST_MARKER',
-            choices: ['reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
+            choices: ['Test', 'reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
             description: 'Category to run when TEST_SCOPE=marker. Ignored for smoke/full.'
         )
         booleanParam(

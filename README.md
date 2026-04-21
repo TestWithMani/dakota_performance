@@ -70,6 +70,7 @@ pytest -q -m smoke
 Run category examples:
 
 ```bash
+pytest -q -m Test
 pytest -q -m metro_areas
 pytest -q -m reports
 pytest -q -m custom_dashboards

@@ -30,6 +30,7 @@ jobs:
       - name: Validate marker subsets discovery
         run: |
           pytest -q -m smoke --collect-only
+          pytest -q -m Test --collect-only
           pytest -q -m metro_areas --collect-only
           pytest -q -m reports --collect-only
           pytest -q -m custom_dashboards --collect-only

@@ -56,6 +56,7 @@ Save, then run `Build with Parameters`.
 - **PR validation job**: `TEST_SCOPE=collect-only`
 - **Scheduled regression job**: `TEST_SCOPE=smoke`
 - **Category jobs**:
+  - `TEST_SCOPE=marker`, `PYTEST_MARKER=Test` (Marketplace Home tab test)
   - `TEST_SCOPE=marker`, `PYTEST_MARKER=reports`
   - `TEST_SCOPE=marker`, `PYTEST_MARKER=metro_areas`
   - `TEST_SCOPE=marker`, `PYTEST_MARKER=custom_dashboards`

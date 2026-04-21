@@ -64,6 +64,9 @@ def pytest_collection_modifyitems(items):
         if file_name in SMOKE_TEST_FILES:
             item.add_marker(pytest.mark.smoke)
 
+        if "home_tab" in file_name:
+            item.add_marker(pytest.mark.Test)
+
         if "contact" in file_name:
             item.add_marker(pytest.mark.contacts)
 
