@@ -43,7 +43,6 @@ Save, then run `Build with Parameters`.
 ## 4) Pipeline Parameters
 
 - `TEST_SCOPE`
-  - `collect-only` (safe CI default, no Salesforce execution)
   - `smoke`
   - `marker`
   - `full`
@@ -53,7 +52,7 @@ Save, then run `Build with Parameters`.
 
 ## 5) Suggested Job Strategy
 
-- **PR validation job**: `TEST_SCOPE=collect-only`
+- **PR validation job**: use GitHub Actions `pytest -q --collect-only`
 - **Scheduled regression job**: `TEST_SCOPE=smoke`
 - **Category jobs**:
   - `TEST_SCOPE=marker`, `PYTEST_MARKER=Test` (Marketplace Home tab test)

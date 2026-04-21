@@ -22,7 +22,7 @@ HEADERS = [
     "Time (s)",
     "Min (s)",
     "Max (s)",
-    "Performnace Benchmake (s)",
+    "Performance Benchmark (s)",
     "Result",
     "Browser",
     "Recorded At",
