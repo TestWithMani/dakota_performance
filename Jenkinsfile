@@ -395,17 +395,10 @@ def sendEmailNotification(String buildStatus) {
         }
     }
 
-    def recipients = []
-    if (params.DEFAULT_EMAIL?.trim()) {
-        recipients.add(params.DEFAULT_EMAIL.trim())
-    }
-    if (params.ADDITIONAL_EMAILS?.trim()) {
-        params.ADDITIONAL_EMAILS.split(',').collect { it.trim() }.findAll { it }.each { mail ->
-            if (!recipients.contains(mail)) {
-                recipients.add(mail)
-            }
-        }
-    }
+    def recipients = collectRecipientEmails(
+        params.DEFAULT_EMAIL as String,
+        params.ADDITIONAL_EMAILS as String
+    )
     if (recipients.isEmpty()) {
         echo 'No email recipients configured; skipping email notification.'
         return
@@ -528,4 +521,26 @@ def sendEmailNotification(String buildStatus) {
     } else {
         emailext(commonArgs)
     }
+}
+
+def collectRecipientEmails(String defaultEmail, String additionalEmails) {
+    def recipients = []
+    def seen = [] as Set
+
+    // Support comma, semicolon, and whitespace/newline separated addresses.
+    [defaultEmail, additionalEmails].findAll { it?.trim() }.each { source ->
+        source
+            .split(/[,\s;]+/)
+            .collect { it.trim() }
+            .findAll { it }
+            .each { mail ->
+                def normalized = mail.toLowerCase()
+                if (!seen.contains(normalized)) {
+                    seen.add(normalized)
+                    recipients.add(mail)
+                }
+            }
+    }
+
+    return recipients
 }
