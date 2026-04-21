@@ -218,7 +218,18 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
     def parts = []
 
-    parts << '-q'
+    // Show richer live output in Jenkins console:
+    // -vv  : print each test node id as it runs
+    // -ra  : include skip/xfail/etc summary in terminal output
+    // --tb=short : concise failure tracebacks for readability
+    // --color=no : avoid ANSI artifacts in Jenkins logs
+    // -o console_output_style=progress : keep visible progress counters
+    parts << '-vv'
+    parts << '-ra'
+    parts << '--tb=short'
+    parts << '--color=no'
+    parts << '-o'
+    parts << 'console_output_style=progress'
 
     if (selector) {
         parts << selector
