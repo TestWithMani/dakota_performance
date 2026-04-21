@@ -161,7 +161,6 @@ pipeline {
                         }
                     }
 
-                    logTestSummaryToConsole('Post test execution')
                 }
             }
         }
