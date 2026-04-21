@@ -411,23 +411,17 @@ def sendEmailNotification(String buildStatus) {
         return
     }
 
-    def markerInfo = params.TEST_SCOPE == 'marker' ? params.PYTEST_MARKER : 'N/A'
     def jobUrl = env.BUILD_URL ?: ''
-    def artifactBase = "${jobUrl}artifact/"
     def excelRelPath = 'salesforce_tab_performance/performance_results.xlsx'
     def excelExists = fileExists(excelRelPath)
-    echo "Excel exists: ${excelExists}"
-    def excelArtifactUrl = "${artifactBase}${excelRelPath}"
-    def htmlReportUrl = "${artifactBase}test-results/report.html"
     def allureUrl = "${jobUrl}allure"
-    def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
-    def triggeredBy = env.BUILD_USER ?: env.BUILD_USER_ID ?: 'Jenkins'
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
 
     def statusCfg = [
-        SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46'],
-        FAILURE : [bg: '#fef2f2', border: '#ef4444', text: '#991b1b'],
-        UNSTABLE: [bg: '#fffbeb', border: '#f59e0b', text: '#92400e']
+        SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
+        FAILURE : [bg: '#fef2f2', border: '#ef4444', text: '#991b1b', pillBg: '#fee2e2'],
+        ABORTED : [bg: '#f8fafc', border: '#64748b', text: '#334155', pillBg: '#e2e8f0'],
+        UNSTABLE: [bg: '#fffbeb', border: '#f59e0b', text: '#92400e', pillBg: '#fef3c7']
     ]
     def cfg = statusCfg.get(actualStatus, statusCfg.UNSTABLE)
     def subject = "Dakota Performance Report | ${actualStatus} | #${env.BUILD_NUMBER}"
@@ -439,67 +433,76 @@ def sendEmailNotification(String buildStatus) {
   <meta charset="UTF-8">
   <title>Dakota Performance Report</title>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#edf2f7;font-family:'Segoe UI',Roboto,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px;">
-        <table width="760" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+        <table width="760" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ee;box-shadow:0 12px 28px rgba(15,23,42,0.08);">
           <tr>
-            <td style="padding:24px 28px;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);color:#ffffff;">
-              <h2 style="margin:0;font-size:24px;">Dakota Marketplace Performance</h2>
-              <p style="margin:6px 0 0;font-size:14px;opacity:0.95;">Automated Jenkins Test Execution Report</p>
+            <td style="padding:26px 30px;background:linear-gradient(135deg,#0b1220 0%,#1d4ed8 100%);color:#ffffff;">
+              <p style="margin:0 0 8px;font-size:11px;letter-spacing:1.1px;text-transform:uppercase;opacity:0.82;">Performance Notification</p>
+              <h2 style="margin:0;font-size:24px;letter-spacing:0.2px;">Dakota Marketplace Performance</h2>
+              <p style="margin:8px 0 0;font-size:13px;opacity:0.92;">Automated CI execution summary for your latest run</p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:14px 28px;background:${cfg.bg};border-bottom:1px solid ${cfg.border};color:${cfg.text};">
-              <table width="100%">
+            <td style="padding:16px 28px;background:${cfg.bg};border-bottom:1px solid ${cfg.border};color:${cfg.text};">
+              <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="font-size:18px;font-weight:700;">Status: ${actualStatus}</td>
-                  <td align="right" style="font-size:14px;">Pass Rate: <strong>${passRate}%</strong></td>
+                  <td style="font-size:18px;font-weight:700;">Execution Status</td>
+                  <td align="right">
+                    <span style="display:inline-block;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;background:${cfg.pillBg};color:${cfg.text};border:1px solid ${cfg.border};">
+                      ${actualStatus}
+                    </span>
+                  </td>
                 </tr>
               </table>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:20px 24px;background:#f8fafc;">
-              <table width="100%" cellpadding="8" cellspacing="8">
+            <td style="padding:24px 30px 10px;">
+              <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Build Details</h3>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                <tr><td width="32%" style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Build Number</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">#${env.BUILD_NUMBER}</td></tr>
+                <tr><td style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Scope</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">${params.TEST_SCOPE}</td></tr>
+                <tr><td style="padding:10px 12px;background:#f8fafc;"><strong>Duration</strong></td><td style="padding:10px 12px;">${durationString}</td></tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 30px 24px;">
+              <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Report Access</h3>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                <tr>
+                  <td width="32%" style="padding:10px 12px;background:#f8fafc;"><strong>Allure Report</strong></td>
+                  <td style="padding:10px 12px;">
+                    <a style="color:#1d4ed8;text-decoration:underline;font-weight:600;" href="${allureUrl}">Open Allure Report</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0;color:#64748b;font-size:12px;">The Excel performance sheet is attached when generated for this run.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 30px 20px;">
+              <table width="100%" cellpadding="8" cellspacing="8" style="font-size:13px;">
                 <tr align="center">
-                  <td style="background:#2563eb;color:#fff;border-radius:10px;"><div style="font-size:12px;">TOTAL</div><div style="font-size:28px;font-weight:700;">${stats.total}</div></td>
-                  <td style="background:#16a34a;color:#fff;border-radius:10px;"><div style="font-size:12px;">PASSED</div><div style="font-size:28px;font-weight:700;">${stats.passed}</div></td>
-                  <td style="background:#dc2626;color:#fff;border-radius:10px;"><div style="font-size:12px;">FAILED</div><div style="font-size:28px;font-weight:700;">${stats.failed}</div></td>
-                  <td style="background:#7c3aed;color:#fff;border-radius:10px;"><div style="font-size:12px;">SKIPPED</div><div style="font-size:28px;font-weight:700;">${stats.skipped}</div></td>
+                  <td style="background:#eef2ff;color:#1e3a8a;border-radius:9px;"><div style="font-size:11px;">TOTAL</div><div style="font-size:22px;font-weight:700;">${stats.total}</div></td>
+                  <td style="background:#ecfdf5;color:#065f46;border-radius:9px;"><div style="font-size:11px;">PASSED</div><div style="font-size:22px;font-weight:700;">${stats.passed}</div></td>
+                  <td style="background:#fef2f2;color:#991b1b;border-radius:9px;"><div style="font-size:11px;">FAILED</div><div style="font-size:22px;font-weight:700;">${stats.failed}</div></td>
+                  <td style="background:#f5f3ff;color:#5b21b6;border-radius:9px;"><div style="font-size:11px;">SKIPPED</div><div style="font-size:22px;font-weight:700;">${stats.skipped}</div></td>
                 </tr>
               </table>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:22px 28px;">
-              <h3 style="margin:0 0 10px;color:#0f172a;">Build Details</h3>
-              <table width="100%" cellpadding="8" cellspacing="0" style="font-size:14px;color:#1e293b;">
-                <tr><td width="32%"><strong>Job</strong></td><td>${env.JOB_NAME}</td></tr>
-                <tr><td><strong>Build #</strong></td><td>${env.BUILD_NUMBER}</td></tr>
-                <tr><td><strong>Scope</strong></td><td>${params.TEST_SCOPE}</td></tr>
-                <tr><td><strong>Marker</strong></td><td>${markerInfo}</td></tr>
-                <tr><td><strong>Duration</strong></td><td>${durationString}</td></tr>
-                <tr><td><strong>Triggered By</strong></td><td>${triggeredBy}</td></tr>
-              </table>
-
-              <h3 style="margin:16px 0 10px;color:#0f172a;">Reports</h3>
-              <table width="100%" cellpadding="8" cellspacing="0" style="font-size:14px;">
-                <tr><td width="32%"><strong>Build</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${jobUrl}">${jobUrl}</a></td></tr>
-                <tr><td><strong>HTML Report</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${htmlReportUrl}">test-results/report.html</a></td></tr>
-                <tr><td><strong>Allure Report</strong></td><td><a style="color:#2563eb;text-decoration:underline;" href="${allureUrl}">${allureUrl}</a></td></tr>
-                <tr><td><strong>Excel Artifact</strong></td><td>${excelExists ? "<a style='color:#2563eb;text-decoration:underline;' href='${excelArtifactUrl}'>performance_results.xlsx</a>" : "Not generated in this run"}</td></tr>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:14px 28px;background:#0f172a;color:#cbd5e1;font-size:12px;">
-              Automated by Jenkins CI/CD | Dakota Marketplace Test Framework
+            <td style="padding:13px 30px;background:#0f172a;color:#cbd5e1;font-size:12px;">
+              Jenkins CI/CD • Dakota Marketplace Test Framework
             </td>
           </tr>
         </table>
@@ -515,8 +518,8 @@ def sendEmailNotification(String buildStatus) {
         subject: subject,
         body: body,
         mimeType: 'text/html',
-        attachLog: true,
-        compressLog: true
+        attachLog: false,
+        compressLog: false
     ]
 
     if (excelExists) {
