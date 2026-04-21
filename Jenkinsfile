@@ -157,17 +157,22 @@ pipeline {
                         junit testResults: env.PYTEST_JUNIT, allowEmptyResults: true
                     }
 
-                    publishHTML(target: [
-                        reportName: 'Pytest HTML Report',
-                        reportDir: 'test-results',
-                        reportFiles: 'report.html',
-                        keepAll: true,
-                        alwaysLinkToLastBuild: true,
-                        allowMissing: true
-                    ])
+                    try {
+                        publishHTML(target: [
+                            reportName: 'Pytest HTML Report',
+                            reportDir: 'test-results',
+                            reportFiles: 'report.html',
+                            keepAll: true,
+                            alwaysLinkToLastBuild: true,
+                            allowMissing: true
+                        ])
+                    } catch (MissingMethodException ex) {
+                        echo 'HTML Publisher plugin not installed; skipping publishHTML step.'
+                    }
 
                     if (params.RUN_ALLURE && fileExists(env.ALLURE_DIR)) {
                         allure([
+                            commandline: 'allure-2.34.1',
                             includeProperties: false,
                             jdk: '',
                             properties: [],
