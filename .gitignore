@@ -12,3 +12,4 @@ allure-results/
 allure-report/
 salesforce_tab_performance/performance_results.xlsx
 salesforce_tab_performance/.env
+.idea/
