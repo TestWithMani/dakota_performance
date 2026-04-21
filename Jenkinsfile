@@ -416,6 +416,7 @@ def sendEmailNotification(String buildStatus) {
     def excelExists = fileExists(excelRelPath)
     def allureUrl = "${jobUrl}allure"
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
+    def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
 
     def statusCfg = [
         SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
@@ -433,14 +434,13 @@ def sendEmailNotification(String buildStatus) {
   <meta charset="UTF-8">
   <title>Dakota Performance Report</title>
 </head>
-<body style="margin:0;padding:0;background:#edf2f7;font-family:'Segoe UI',Roboto,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:linear-gradient(180deg,#eef4ff 0%,#f6f9ff 100%);font-family:'Segoe UI',Roboto,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px;">
-        <table width="760" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ee;box-shadow:0 12px 28px rgba(15,23,42,0.08);">
+        <table width="760" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ee;box-shadow:0 14px 32px rgba(30,64,175,0.14);">
           <tr>
-            <td style="padding:26px 30px;background:linear-gradient(135deg,#0b1220 0%,#1d4ed8 100%);color:#ffffff;">
-              <p style="margin:0 0 8px;font-size:11px;letter-spacing:1.1px;text-transform:uppercase;opacity:0.82;">Performance Notification</p>
+            <td style="padding:26px 30px;background:linear-gradient(135deg,#0f172a 0%,#1e40af 52%,#7c3aed 100%);color:#ffffff;">
               <h2 style="margin:0;font-size:24px;letter-spacing:0.2px;">Dakota Marketplace Performance</h2>
               <p style="margin:8px 0 0;font-size:13px;opacity:0.92;">Automated CI execution summary for your latest run</p>
             </td>
@@ -467,7 +467,8 @@ def sendEmailNotification(String buildStatus) {
               <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
                 <tr><td width="32%" style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Build Number</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">#${env.BUILD_NUMBER}</td></tr>
                 <tr><td style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Scope</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">${params.TEST_SCOPE}</td></tr>
-                <tr><td style="padding:10px 12px;background:#f8fafc;"><strong>Duration</strong></td><td style="padding:10px 12px;">${durationString}</td></tr>
+                <tr><td style="padding:10px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;"><strong>Duration</strong></td><td style="padding:10px 12px;border-top:1px solid #e2e8f0;">${durationString}</td></tr>
+                <tr><td style="padding:10px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;"><strong>Passed Percentage</strong></td><td style="padding:10px 12px;border-top:1px solid #e2e8f0;">${passRate}%</td></tr>
               </table>
             </td>
           </tr>
@@ -483,7 +484,7 @@ def sendEmailNotification(String buildStatus) {
                   </td>
                 </tr>
               </table>
-              <p style="margin:12px 0 0;color:#64748b;font-size:12px;">The Excel performance sheet is attached when generated for this run.</p>
+              <p style="margin:12px 0 0;color:#64748b;font-size:12px;">Please see the attached Excel performance sheet for detailed run metrics.</p>
             </td>
           </tr>
 
@@ -491,10 +492,10 @@ def sendEmailNotification(String buildStatus) {
             <td style="padding:0 30px 20px;">
               <table width="100%" cellpadding="8" cellspacing="8" style="font-size:13px;">
                 <tr align="center">
-                  <td style="background:#eef2ff;color:#1e3a8a;border-radius:9px;"><div style="font-size:11px;">TOTAL</div><div style="font-size:22px;font-weight:700;">${stats.total}</div></td>
-                  <td style="background:#ecfdf5;color:#065f46;border-radius:9px;"><div style="font-size:11px;">PASSED</div><div style="font-size:22px;font-weight:700;">${stats.passed}</div></td>
-                  <td style="background:#fef2f2;color:#991b1b;border-radius:9px;"><div style="font-size:11px;">FAILED</div><div style="font-size:22px;font-weight:700;">${stats.failed}</div></td>
-                  <td style="background:#f5f3ff;color:#5b21b6;border-radius:9px;"><div style="font-size:11px;">SKIPPED</div><div style="font-size:22px;font-weight:700;">${stats.skipped}</div></td>
+                  <td style="background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);color:#1e3a8a;border-radius:9px;"><div style="font-size:11px;">TOTAL</div><div style="font-size:22px;font-weight:700;">${stats.total}</div></td>
+                  <td style="background:linear-gradient(180deg,#dcfce7 0%,#bbf7d0 100%);color:#065f46;border-radius:9px;"><div style="font-size:11px;">PASSED</div><div style="font-size:22px;font-weight:700;">${stats.passed}</div></td>
+                  <td style="background:linear-gradient(180deg,#fee2e2 0%,#fecaca 100%);color:#991b1b;border-radius:9px;"><div style="font-size:11px;">FAILED</div><div style="font-size:22px;font-weight:700;">${stats.failed}</div></td>
+                  <td style="background:linear-gradient(180deg,#ede9fe 0%,#ddd6fe 100%);color:#5b21b6;border-radius:9px;"><div style="font-size:11px;">SKIPPED</div><div style="font-size:22px;font-weight:700;">${stats.skipped}</div></td>
                 </tr>
               </table>
             </td>
