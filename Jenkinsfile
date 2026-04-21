@@ -507,19 +507,34 @@ def sendEmailNotification(String buildStatus) {
 </html>
 """
 
-    def commonArgs = [
-        to: recipients.join(', '),
+    def baseArgs = [
         subject: subject,
         body: body,
         mimeType: 'text/html',
         attachLog: false,
         compressLog: false
     ]
-
     if (excelExists) {
-        emailext(commonArgs + [attachmentsPattern: excelRelPath])
-    } else {
-        emailext(commonArgs)
+        baseArgs.attachmentsPattern = excelRelPath
+    }
+
+    def recipientList = recipients.join(', ')
+    echo "Sending email to: ${recipientList}"
+
+    try {
+        // Primary path: single send with comma-separated recipients (same as prior working pipeline).
+        emailext(baseArgs + [to: recipientList])
+    } catch (Exception ex) {
+        echo "Combined email send failed: ${ex.getMessage()}"
+        echo "Falling back to one-by-one recipient delivery."
+        recipients.each { recipient ->
+            try {
+                echo "Sending fallback email to: ${recipient}"
+                emailext(baseArgs + [to: recipient])
+            } catch (Exception innerEx) {
+                echo "Failed to send email to ${recipient}: ${innerEx.getMessage()}"
+            }
+        }
     }
 }
 
