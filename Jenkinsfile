@@ -25,6 +25,16 @@ pipeline {
             description: 'Publish Allure report in Jenkins (requires Allure plugin installed).'
         )
         booleanParam(
+            name: 'ENABLE_INFRA_RETRY',
+            defaultValue: true,
+            description: 'Retry only infra/transient Selenium failures (not assertion/business-logic failures).'
+        )
+        string(
+            name: 'INFRA_RETRY_COUNT',
+            defaultValue: '1',
+            description: 'How many retries for allowed infra failures (0 disables retries).'
+        )
+        booleanParam(
             name: 'SEND_EMAIL',
             defaultValue: true,
             description: 'Send HTML email summary when pipeline finishes.'
@@ -80,13 +90,13 @@ pipeline {
                             python3 -m venv ${VENV_DIR}
                             ${VENV_DIR}/bin/python -m pip install --upgrade pip
                             ${VENV_DIR}/bin/python -m pip install -r salesforce_tab_performance/requirements.txt
-                            ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest
+                            ${VENV_DIR}/bin/python -m pip install pytest-html pytest-json-report allure-pytest pytest-rerunfailures
                         ''',
                         '''
                             py -m venv %VENV_DIR%
                             %VENV_DIR%\\Scripts\\python -m pip install --upgrade pip
                             %VENV_DIR%\\Scripts\\python -m pip install -r salesforce_tab_performance/requirements.txt
-                            %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest
+                            %VENV_DIR%\\Scripts\\python -m pip install pytest-html pytest-json-report allure-pytest pytest-rerunfailures
                         '''
                     )
                 }
@@ -132,7 +142,13 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    def runCmd = buildPytestCommand(params.TEST_SCOPE as String, params.PYTEST_MARKER as String, params.RUN_ALLURE as boolean)
+                    def runCmd = buildPytestCommand(
+                        params.TEST_SCOPE as String,
+                        params.PYTEST_MARKER as String,
+                        params.RUN_ALLURE as boolean,
+                        params.ENABLE_INFRA_RETRY as boolean,
+                        params.INFRA_RETRY_COUNT as String
+                    )
                     echo "Pytest command: pytest ${runCmd}"
 
                     withCredentials([usernamePassword(
@@ -209,7 +225,7 @@ pipeline {
     }
 }
 
-def buildPytestCommand(String scope, String marker, boolean runAllure) {
+def buildPytestCommand(String scope, String marker, boolean runAllure, boolean enableInfraRetry, String infraRetryCount) {
     def selector = ''
 
     if (scope == 'smoke') {
@@ -241,6 +257,25 @@ def buildPytestCommand(String scope, String marker, boolean runAllure) {
     }
     if (allureArg) {
         parts << allureArg
+    }
+
+    if (enableInfraRetry) {
+        def retries = 0
+        try {
+            retries = Math.max((infraRetryCount ?: '0').trim() as int, 0)
+        } catch (Exception ignored) {
+            retries = 1
+        }
+
+        if (retries > 0) {
+            // Requires pytest-rerunfailures plugin. Keep this list focused on transient/UI infra issues.
+            parts << "--reruns=${retries}"
+            parts << '--only-rerun=selenium\\.common\\.exceptions\\.TimeoutException'
+            parts << '--only-rerun=selenium\\.common\\.exceptions\\.NoSuchElementException'
+            parts << '--only-rerun=selenium\\.common\\.exceptions\\.StaleElementReferenceException'
+            parts << '--only-rerun=selenium\\.common\\.exceptions\\.ElementClickInterceptedException'
+            parts << '--only-rerun=selenium\\.common\\.exceptions\\.WebDriverException'
+        }
     }
 
     parts << "--junitxml=${env.PYTEST_JUNIT}"
