@@ -434,7 +434,7 @@ def sendEmailNotification(String buildStatus) {
   <meta charset="UTF-8">
   <title>Dakota Performance Report</title>
 </head>
-<body style="margin:0;padding:0;background:linear-gradient(180deg,#eef4ff 0%,#f6f9ff 100%);font-family:'Segoe UI',Roboto,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:linear-gradient(140deg,#e0ecff 0%,#efe7ff 45%,#fff6e5 100%);font-family:'Segoe UI',Roboto,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px;">
@@ -464,11 +464,11 @@ def sendEmailNotification(String buildStatus) {
           <tr>
             <td style="padding:24px 30px 10px;">
               <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Build Details</h3>
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                <tr><td width="32%" style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Build Number</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">#${env.BUILD_NUMBER}</td></tr>
-                <tr><td style="padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><strong>Scope</strong></td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">${params.TEST_SCOPE}</td></tr>
-                <tr><td style="padding:10px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;"><strong>Duration</strong></td><td style="padding:10px 12px;border-top:1px solid #e2e8f0;">${durationString}</td></tr>
-                <tr><td style="padding:10px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;"><strong>Passed Percentage</strong></td><td style="padding:10px 12px;border-top:1px solid #e2e8f0;">${passRate}%</td></tr>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#f8faff 0%,#fdfdff 100%);">
+                <tr><td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Build Number</strong></td><td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;">#${env.BUILD_NUMBER}</td></tr>
+                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Scope</strong></td><td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;">${params.TEST_SCOPE}</td></tr>
+                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Duration</strong></td><td style="padding:10px 12px;border-top:1px solid #dbe3f3;">${durationString}</td></tr>
+                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Passed Percentage</strong></td><td style="padding:10px 12px;border-top:1px solid #dbe3f3;color:#0f766e;font-weight:700;">${passRate}%</td></tr>
               </table>
             </td>
           </tr>
@@ -476,11 +476,11 @@ def sendEmailNotification(String buildStatus) {
           <tr>
             <td style="padding:8px 30px 24px;">
               <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Report Access</h3>
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c4b5fd;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#faf5ff 0%,#f3f0ff 100%);">
                 <tr>
-                  <td width="32%" style="padding:10px 12px;background:#f8fafc;"><strong>Allure Report</strong></td>
+                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#ede9fe 0%,#ddd6fe 100%);"><strong>Allure Report</strong></td>
                   <td style="padding:10px 12px;">
-                    <a style="color:#1d4ed8;text-decoration:underline;font-weight:600;" href="${allureUrl}">Open Allure Report</a>
+                    <a style="color:#6d28d9;text-decoration:underline;font-weight:700;" href="${allureUrl}">Open Allure Report</a>
                   </td>
                 </tr>
               </table>
