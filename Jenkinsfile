@@ -527,7 +527,7 @@ def collectRecipientEmails(String defaultEmail, String additionalEmails) {
     def recipients = []
     def seen = [] as Set
 
-    // Support comma, semicolon, and whitespace/newline separated addresses.
+    // Pass through any domain and keep parsing tolerant for separators/whitespace.
     [defaultEmail, additionalEmails].findAll { it?.trim() }.each { source ->
         source
             .split(/[,\s;]+/)
@@ -542,5 +542,6 @@ def collectRecipientEmails(String defaultEmail, String additionalEmails) {
             }
     }
 
+    echo "Email recipients resolved: ${recipients.join(', ')}"
     return recipients
 }
