@@ -5,7 +5,7 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '30'))
-        timeout(time: 90, unit: 'MINUTES')
+        timeout(time: 200, unit: 'MINUTES')
     }
 
     parameters {
@@ -57,8 +57,15 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
                 script {
+                    if (fileExists('salesforce_tab_performance/requirements.txt')) {
+                        echo 'Repository already present in workspace; skipping checkout.'
+                    } else {
+                        error(
+                            "Workspace has no source code. Configure this job as 'Pipeline script from SCM' " +
+                            "or use a Multibranch Pipeline so checkout can pull repository contents."
+                        )
+                    }
                     def shortCommit = env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'N/A'
                     echo "Branch: ${env.BRANCH_NAME ?: 'main'} | Commit: ${shortCommit}"
                 }
