@@ -565,21 +565,26 @@ def prepareExcelArtifactPath(boolean freshMode) {
     def baseDir = 'salesforce_tab_performance'
     def defaultExcel = "${baseDir}/performance_results.xlsx"
     def finalExcel = "${baseDir}/Dakota Marketplace Performance.xlsx"
+
+    if (fileExists(finalExcel)) {
+        return finalExcel
+    }
     if (!fileExists(defaultExcel)) {
+        echo "Excel artifact not found at expected paths: ${defaultExcel} or ${finalExcel}"
         return null
     }
 
     if (defaultExcel != finalExcel) {
         runShell(
             """
-                cp "${defaultExcel}" "${finalExcel}"
+                if [ -f "${defaultExcel}" ]; then cp "${defaultExcel}" "${finalExcel}"; fi
             """,
             """
-                copy /Y "${defaultExcel}" "${finalExcel}" >nul
+                if exist "${defaultExcel}" copy /Y "${defaultExcel}" "${finalExcel}" >nul
             """
         )
     }
-    return finalExcel
+    return fileExists(finalExcel) ? finalExcel : defaultExcel
 }
 
 def collectRecipientEmails(String defaultEmail, String additionalEmails) {
