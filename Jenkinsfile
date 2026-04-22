@@ -290,13 +290,19 @@ def buildPytestCommand(String scope, String marker, boolean runAllure, boolean e
         }
 
         if (retries > 0) {
-            // Requires pytest-rerunfailures plugin. Keep this list focused on transient/UI infra issues.
+            // Requires pytest-rerunfailures plugin.
+            // Match short and fully-qualified Selenium exception names so retry works across traceback formats.
             parts << "--reruns=${retries}"
-            parts << '--only-rerun=selenium\\.common\\.exceptions\\.TimeoutException'
-            parts << '--only-rerun=selenium\\.common\\.exceptions\\.NoSuchElementException'
-            parts << '--only-rerun=selenium\\.common\\.exceptions\\.StaleElementReferenceException'
-            parts << '--only-rerun=selenium\\.common\\.exceptions\\.ElementClickInterceptedException'
-            parts << '--only-rerun=selenium\\.common\\.exceptions\\.WebDriverException'
+            parts << '--reruns-delay=2'
+            parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?TimeoutException'
+            parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?NoSuchElementException'
+            parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?StaleElementReferenceException'
+            parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?ElementClickInterceptedException'
+            parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?WebDriverException'
+            parts << '--only-rerun=SessionNotCreatedException'
+            parts << '--only-rerun=disconnected: not connected to DevTools'
+            parts << '--only-rerun=chrome not reachable'
+            parts << '--only-rerun=ERR_CONNECTION_RESET'
         }
     }
 
@@ -589,15 +595,13 @@ def prepareExcelArtifactPath(boolean freshMode) {
     def rootExcel = 'performance_results.xlsx'
     def finalExcel = "${baseDir}/Dakota Marketplace Performance.xlsx"
 
-    if (fileExists(finalExcel)) {
-        return finalExcel
-    }
-
     def sourceExcel = null
     if (fileExists(defaultExcel)) {
         sourceExcel = defaultExcel
     } else if (fileExists(rootExcel)) {
         sourceExcel = rootExcel
+    } else if (fileExists(finalExcel)) {
+        sourceExcel = finalExcel
     } else {
         echo "Excel artifact not found at expected paths: ${defaultExcel}, ${rootExcel}, or ${finalExcel}"
         return null
