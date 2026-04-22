@@ -117,7 +117,7 @@ pipeline {
                             '''
                                 rm -f salesforce_tab_performance/performance_results.xlsx || true
                                 rm -f "salesforce_tab_performance/Dakota Marketplace Performance.xlsx" || true
-                                rm -f salesforce_tab_performance/Dakota\ Matketplace\ Performance\ -\ *.xlsx || true
+                                rm -f salesforce_tab_performance/*.xlsx || true
                                 rm -rf allure-report || true
                             ''',
                             '''
