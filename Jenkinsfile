@@ -12,52 +12,52 @@ pipeline {
         choice(
             name: 'TEST_SCOPE',
             choices: ['marker','smoke', 'full'],
-            description: '🧪 Choose test level: smoke (quick), marker (category), or full (complete suite).'
+            description: 'Choose test level: smoke (quick), marker (category), or full (complete suite).'
         )
         choice(
             name: 'PYTEST_MARKER',
             choices: ['Test', 'reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
-            description: '🏷 Run a specific test category (only used when TEST_SCOPE = marker).'
+            description: 'Run a specific test category (only used when TEST_SCOPE = marker).'
         )
         booleanParam(
             name: 'RUN_ALLURE',
             defaultValue: true,
-            description: '📊 Enable Allure report generation and publishing in Jenkins.'
+            description: 'Enable Allure report generation and publishing in Jenkins.'
         )
         booleanParam(
             name: 'ENABLE_INFRA_RETRY',
             defaultValue: true,
-            description: '🔁 Retry only flaky/infrastructure Selenium failures automatically.'
+            description: 'Retry only flaky/infrastructure Selenium failures automatically.'
         )
         string(
             name: 'INFRA_RETRY_COUNT',
             defaultValue: '1',
-            description: '🔢 Number of retries for allowed infra failures (0 = no retry).'
+            description: 'Number of retries for allowed infra failures (0 = no retry).'
         )
         booleanParam(
             name: 'SEND_EMAIL',
             defaultValue: true,
-            description: '📧 Send HTML email summary after pipeline execution.'
+            description: 'Send HTML email summary after pipeline execution.'
         )
         booleanParam(
             name: 'FRESH_REPORT_OUTPUT',
             defaultValue: false,
-            description: '🧹 Clear old reports and generate fresh Excel + Allure output.'
+            description: 'Clear old reports and generate fresh Excel + Allure output.'
         )
         string(
             name: 'ADDITIONAL_EMAILS',
             defaultValue: '',
-            description: '👥 Extra email recipients (comma-separated list).'
+            description: 'Extra email recipients (comma-separated list).'
         )
         string(
             name: 'DEFAULT_EMAIL',
             defaultValue: 'usman.arshad@rolustech.com',
-            description: '📩 Primary recipient for pipeline execution reports.'
+            description: 'Primary recipient for pipeline execution reports.'
         )
         string(
             name: 'SF_CREDENTIALS_ID',
             defaultValue: 'sf-marketplace-creds',
-            description: '🔐 Jenkins credential ID used for Salesforce login automation.'
+            description: 'Jenkins credential ID used for Salesforce login automation.'
         )
     }
 
