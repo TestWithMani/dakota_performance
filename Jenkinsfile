@@ -11,7 +11,7 @@ pipeline {
     parameters {
         choice(
             name: 'TEST_SCOPE',
-            choices: ['smoke', 'marker', 'full'],
+            choices: ['marker','smoke', 'full'],
             description: 'Execution mode: smoke (fast sanity), marker (one category), full (complete regression).'
         )
         choice(
