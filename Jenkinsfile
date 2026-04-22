@@ -582,14 +582,17 @@ def prepareExcelArtifactPath(boolean freshMode) {
     }
 
     if (sourceExcel != finalExcel) {
+        def sourceExcelWin = sourceExcel.replace('/', '\\')
+        def finalExcelWin = finalExcel.replace('/', '\\')
         runShell(
             """
                 if [ -f "${sourceExcel}" ]; then cp "${sourceExcel}" "${finalExcel}"; fi
             """,
             """
-                if exist "${sourceExcel}" (
-                    copy /Y "${sourceExcel}" "${finalExcel}" >nul
+                if exist "${sourceExcelWin}" (
+                    copy /Y "${sourceExcelWin}" "${finalExcelWin}" >nul 2>nul
                 )
+                exit /b 0
             """
         )
     }
