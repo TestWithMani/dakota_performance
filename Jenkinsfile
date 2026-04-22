@@ -39,6 +39,11 @@ pipeline {
             defaultValue: true,
             description: 'Send HTML email summary when pipeline finishes.'
         )
+        booleanParam(
+            name: 'FRESH_REPORT_OUTPUT',
+            defaultValue: false,
+            description: 'When enabled, clear prior Allure/Excel history and generate a fresh dated Excel attachment.'
+        )
         string(
             name: 'ADDITIONAL_EMAILS',
             defaultValue: '',
@@ -106,6 +111,23 @@ pipeline {
         stage('Prepare Report Directories') {
             steps {
                 script {
+                    if (params.FRESH_REPORT_OUTPUT as boolean) {
+                        echo 'Fresh report mode enabled: clearing previous Excel and Allure history artifacts.'
+                        runShell(
+                            '''
+                                rm -f salesforce_tab_performance/performance_results.xlsx || true
+                                rm -f "salesforce_tab_performance/Dakota Marketplace Performance.xlsx" || true
+                                rm -f salesforce_tab_performance/Dakota\ Matketplace\ Performance\ -\ *.xlsx || true
+                                rm -rf allure-report || true
+                            ''',
+                            '''
+                                if exist "salesforce_tab_performance\\performance_results.xlsx" del /q "salesforce_tab_performance\\performance_results.xlsx"
+                                if exist "salesforce_tab_performance\\Dakota Marketplace Performance.xlsx" del /q "salesforce_tab_performance\\Dakota Marketplace Performance.xlsx"
+                                del /q "salesforce_tab_performance\\Dakota Matketplace Performance - *.xlsx" 2>nul
+                                if exist allure-report rmdir /s /q allure-report
+                            '''
+                        )
+                    }
                     runShell(
                         '''
                             rm -rf test-results allure-results || true
@@ -213,8 +235,9 @@ pipeline {
                 if (fileExists('allure-results')) {
                     archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
                 }
-                if (fileExists('salesforce_tab_performance/performance_results.xlsx')) {
-                    archiveArtifacts artifacts: 'salesforce_tab_performance/performance_results.xlsx', allowEmptyArchive: true
+                def excelArtifact = prepareExcelArtifactPath(params.FRESH_REPORT_OUTPUT as boolean)
+                if (excelArtifact) {
+                    archiveArtifacts artifacts: excelArtifact, allowEmptyArchive: true
                 }
                 if (params.SEND_EMAIL) {
                     sendEmailNotification(currentBuild.currentResult ?: 'UNKNOWN')
@@ -405,8 +428,8 @@ def sendEmailNotification(String buildStatus) {
     }
 
     def jobUrl = env.BUILD_URL ?: ''
-    def excelRelPath = 'salesforce_tab_performance/performance_results.xlsx'
-    def excelExists = fileExists(excelRelPath)
+    def excelRelPath = prepareExcelArtifactPath(params.FRESH_REPORT_OUTPUT as boolean)
+    def excelExists = excelRelPath ? fileExists(excelRelPath) : false
     def allureUrl = "${jobUrl}allure"
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
     def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
@@ -536,6 +559,27 @@ def sendEmailNotification(String buildStatus) {
             }
         }
     }
+}
+
+def prepareExcelArtifactPath(boolean freshMode) {
+    def baseDir = 'salesforce_tab_performance'
+    def defaultExcel = "${baseDir}/performance_results.xlsx"
+    def finalExcel = "${baseDir}/Dakota Marketplace Performance.xlsx"
+    if (!fileExists(defaultExcel)) {
+        return null
+    }
+
+    if (defaultExcel != finalExcel) {
+        runShell(
+            """
+                cp "${defaultExcel}" "${finalExcel}"
+            """,
+            """
+                copy /Y "${defaultExcel}" "${finalExcel}" >nul
+            """
+        )
+    }
+    return finalExcel
 }
 
 def collectRecipientEmails(String defaultEmail, String additionalEmails) {

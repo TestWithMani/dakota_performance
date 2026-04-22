@@ -49,7 +49,7 @@ def _ensure_workbook(file_path: Path) -> None:
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Performance"
+    sheet.title = "Dakota Marketplace Performance"
     sheet.append(HEADERS)
     _style_header(sheet)
     _set_sheet_layout(sheet)
@@ -72,6 +72,8 @@ def log_performance_results(
 
     workbook = load_workbook(file_path)
     sheet = workbook.active
+    if sheet.title != "Dakota Marketplace Performance":
+        sheet.title = "Dakota Marketplace Performance"
     _ensure_headers(sheet)
     _style_header(sheet)
     _set_sheet_layout(sheet)
