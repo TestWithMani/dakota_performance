@@ -441,7 +441,7 @@ def sendEmailNotification(String buildStatus) {
         UNSTABLE: [bg: '#fffbeb', border: '#f59e0b', text: '#92400e', pillBg: '#fef3c7']
     ]
     def cfg = statusCfg.get(actualStatus, statusCfg.UNSTABLE)
-    def subject = "Dakota Marketplace Performnace | ${new Date().format('yyyy-MM-dd')}"
+    def subject = "Dakota Marketplace Performance | ${new Date().format('yyyy-MM-dd')}"
 
     def body = """
 <!DOCTYPE html>
