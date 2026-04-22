@@ -564,27 +564,39 @@ def sendEmailNotification(String buildStatus) {
 def prepareExcelArtifactPath(boolean freshMode) {
     def baseDir = 'salesforce_tab_performance'
     def defaultExcel = "${baseDir}/performance_results.xlsx"
+    def rootExcel = 'performance_results.xlsx'
     def finalExcel = "${baseDir}/Dakota Marketplace Performance.xlsx"
 
     if (fileExists(finalExcel)) {
         return finalExcel
     }
-    if (!fileExists(defaultExcel)) {
-        echo "Excel artifact not found at expected paths: ${defaultExcel} or ${finalExcel}"
+
+    def sourceExcel = null
+    if (fileExists(defaultExcel)) {
+        sourceExcel = defaultExcel
+    } else if (fileExists(rootExcel)) {
+        sourceExcel = rootExcel
+    } else {
+        echo "Excel artifact not found at expected paths: ${defaultExcel}, ${rootExcel}, or ${finalExcel}"
         return null
     }
 
-    if (defaultExcel != finalExcel) {
+    if (sourceExcel != finalExcel) {
         runShell(
             """
-                if [ -f "${defaultExcel}" ]; then cp "${defaultExcel}" "${finalExcel}"; fi
+                if [ -f "${sourceExcel}" ]; then cp "${sourceExcel}" "${finalExcel}"; fi
             """,
             """
-                if exist "${defaultExcel}" copy /Y "${defaultExcel}" "${finalExcel}" >nul
+                if exist "${sourceExcel}" (
+                    copy /Y "${sourceExcel}" "${finalExcel}" >nul
+                )
             """
         )
     }
-    return fileExists(finalExcel) ? finalExcel : defaultExcel
+    if (fileExists(finalExcel)) {
+        return finalExcel
+    }
+    return sourceExcel
 }
 
 def collectRecipientEmails(String defaultEmail, String additionalEmails) {
