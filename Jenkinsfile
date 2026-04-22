@@ -369,6 +369,29 @@ def getTestStatistics() {
     return stats
 }
 
+def getFailedTestNames() {
+    def failures = []
+    def junitPath = env.PYTEST_JUNIT ?: 'test-results/pytest.xml'
+    if (!fileExists(junitPath)) {
+        return failures
+    }
+
+    try {
+        def xmlText = readFile(junitPath)
+        def matcher = (xmlText =~ /<testcase\b[^>]*\bname=(["'])(.*?)\1[^>]*>(?:(?!<\/testcase>).)*<(failure|error)\b/si)
+        while (matcher.find()) {
+            def name = matcher.group(2)?.trim()
+            if (name) {
+                failures << name
+            }
+        }
+    } catch (Exception ex) {
+        echo "Could not parse failed test names from JUnit XML: ${ex.message}"
+    }
+
+    return failures.unique()
+}
+
 def extractIntFromJson(String jsonText, String key) {
     if (!jsonText?.trim()) {
         return 0
@@ -405,6 +428,7 @@ Skipped: ${stats.skipped}
 
 def sendEmailNotification(String buildStatus) {
     def stats = getTestStatistics()
+    def failedTests = getFailedTestNames()
     def actualStatus = currentBuild.result ?: buildStatus
 
     // Preserve Jenkins infra/build failures as source of truth.
@@ -433,6 +457,7 @@ def sendEmailNotification(String buildStatus) {
     def allureUrl = "${jobUrl}allure"
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
     def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
+    def failedTestSummary = failedTests ? failedTests.join('<br/>') : 'None'
 
     def statusCfg = [
         SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
@@ -463,28 +488,25 @@ def sendEmailNotification(String buildStatus) {
           </tr>
 
           <tr>
-            <td style="padding:16px 28px;background:${cfg.bg};border-bottom:1px solid ${cfg.border};color:${cfg.text};">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="font-size:18px;font-weight:700;">Execution Status</td>
-                  <td align="right">
-                    <span style="display:inline-block;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;background:${cfg.pillBg};color:${cfg.text};border:1px solid ${cfg.border};">
-                      ${actualStatus}
-                    </span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
             <td style="padding:24px 30px 10px;">
               <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Build Details</h3>
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#f8faff 0%,#fdfdff 100%);">
-                <tr><td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Build Number</strong></td><td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;">#${env.BUILD_NUMBER}</td></tr>
-                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Scope</strong></td><td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;">${params.TEST_SCOPE}</td></tr>
-                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Duration</strong></td><td style="padding:10px 12px;border-top:1px solid #dbe3f3;">${durationString}</td></tr>
-                <tr><td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Passed Percentage</strong></td><td style="padding:10px 12px;border-top:1px solid #dbe3f3;color:#0f766e;font-weight:700;">${passRate}%</td></tr>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#f8faff 0%,#fdfdff 100%);table-layout:fixed;">
+                <tr>
+                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Build Status</strong></td>
+                  <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;background:${cfg.bg};color:${cfg.text};font-weight:700;">${actualStatus}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Failed Test / Tab Name(s)</strong></td>
+                  <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;line-height:1.45;">${failedTestSummary}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Duration</strong></td>
+                  <td style="padding:10px 12px;border-top:1px solid #dbe3f3;">${durationString}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-top:1px solid #c7d2fe;"><strong>Passed Percentage</strong></td>
+                  <td style="padding:10px 12px;border-top:1px solid #dbe3f3;color:#0f766e;font-weight:700;">${passRate}%</td>
+                </tr>
               </table>
             </td>
           </tr>
