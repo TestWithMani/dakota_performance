@@ -496,7 +496,8 @@ def sendEmailNotification(String buildStatus) {
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
     def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
     def cleanedFailedTests = failedTests.collect { name ->
-        (name ?: '')
+        def prettyName = normalizeFailedTestNameToTab(name ?: '')
+        prettyName
             .replaceAll(/(?i)exccedded/, 'exceeded')
             .replaceAll(/(?i)\btab\(s\)\b/, 'Tabs')
             .trim()
@@ -620,6 +621,45 @@ def sendEmailNotification(String buildStatus) {
             }
         }
     }
+}
+
+def normalizeFailedTestNameToTab(String testName) {
+    def value = (testName ?: '').trim()
+    if (!value) {
+        return value
+    }
+
+    // Convert pytest case names like test_foo_bar_tab_render_performance to tab labels.
+    value = value
+        .replaceFirst(/^test_/, '')
+        .replaceFirst(/_tab_render_performance$/, '')
+        .replaceFirst(/_tab_performance$/, '')
+        .replaceFirst(/_render_performance$/, '')
+        .replaceFirst(/_performance$/, '')
+        .replaceFirst(/_tab$/, '')
+
+    // Remove parameterized-test suffix if present (e.g., name[param]).
+    value = value.replaceFirst(/\[.*\]$/, '')
+
+    // Preserve common acronyms while keeping other words title-cased.
+    def acronyms = ['mru', 'v2'] as Set
+    def words = value
+        .split(/_+/)
+        .findAll { it?.trim() }
+        .collect { token ->
+            def lower = token.toLowerCase()
+            if (acronyms.contains(lower) || lower ==~ /\d+[a-z]+/) {
+                return lower.toUpperCase()
+            }
+            return lower.capitalize()
+        }
+
+    if (!words) {
+        return testName
+    }
+
+    def label = words.join(' ')
+    return label.toLowerCase().endsWith(' tab') ? label : "${label} Tab"
 }
 
 def prepareExcelArtifactPath(boolean freshMode) {
