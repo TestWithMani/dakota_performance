@@ -514,11 +514,7 @@ def sendEmailNotification(String buildStatus) {
               <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Build Details</h3>
               <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#f8faff 0%,#fdfdff 100%);table-layout:fixed;">
                 <tr>
-                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Build Status</strong></td>
-                  <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;background:${cfg.bg};color:${cfg.text};font-weight:700;">${actualStatus}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Failed Test / Tab Name(s)</strong></td>
+                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Failed Test / Tab Name(s)</strong></td>
                   <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;line-height:1.45;">${failedTestSummary}</td>
                 </tr>
                 <tr>
