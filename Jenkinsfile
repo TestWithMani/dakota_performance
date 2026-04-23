@@ -94,11 +94,27 @@ pipeline {
 
         stage('Reset Build History (Optional)') {
             when {
-                expression { params.RESET_JOB_BUILD_HISTORY as boolean }
+                expression { return params.RESET_JOB_BUILD_HISTORY == true }
             }
             steps {
+                echo "Reset Build History is ENABLED but running SAFE mode (no Jenkins internal API usage)."
+
                 script {
-                    resetCurrentJobBuildHistory()
+                    // Instead of touching Jenkins builds, just clean workspace artifacts.
+                    if (fileExists('test-results')) {
+                        runShell(
+                            'rm -rf test-results || true',
+                            'rmdir /s /q test-results'
+                        )
+                    }
+                    if (fileExists('allure-results')) {
+                        runShell(
+                            'rm -rf allure-results || true',
+                            'rmdir /s /q allure-results'
+                        )
+                    }
+
+                    echo 'Workspace history reset completed safely.'
                 }
             }
         }
@@ -663,51 +679,3 @@ def collectRecipientEmails(String defaultEmail, String additionalEmails) {
     return recipients
 }
 
-def resetCurrentJobBuildHistory() {
-    try {
-        def job = currentBuild?.rawBuild?.parent
-        def currentBuildNumber = currentBuild?.number as int
-
-        if (job == null) {
-            echo 'Unable to resolve Jenkins job from current build context; skipping history reset.'
-            return
-        }
-
-        int deletedCount = 0
-        def deleteErrors = []
-
-        job.builds.each { run ->
-            if ((run.number as int) != currentBuildNumber) {
-                try {
-                    run.delete()
-                    deletedCount++
-                } catch (Exception ex) {
-                    deleteErrors << "#${run.number}: ${ex.message}"
-                }
-            }
-        }
-
-        try {
-            job.updateNextBuildNumber(1)
-            echo "Reset build history complete. Deleted ${deletedCount} build(s). Next build number set to 1."
-        } catch (Exception ex) {
-            echo "Deleted ${deletedCount} build(s), but could not set next build number to 1: ${ex.message}"
-            echo 'Tip: this may require Jenkins script approval or additional permissions.'
-        }
-
-        if (!deleteErrors.isEmpty()) {
-            echo "Some builds could not be deleted: ${deleteErrors.join(' | ')}"
-        }
-
-        echo "Current running build #${currentBuildNumber} is intentionally kept."
-    } catch (Exception ex) {
-        def msg = ex?.message ?: ''
-        if (msg.contains('Scripts not permitted')) {
-            echo 'RESET_JOB_BUILD_HISTORY was requested, but Jenkins sandbox blocked access.'
-            echo 'Please approve the pending signatures in Manage Jenkins > In-process Script Approval, then rerun.'
-            echo "Sandbox error detail: ${msg}"
-            return
-        }
-        echo "Build-history reset skipped due to error: ${msg}"
-    }
-}
