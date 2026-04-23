@@ -384,7 +384,7 @@ def getFailedTestNames() {
 
     try {
         def xmlText = readFile(junitPath)
-        def matcher = (xmlText =~ /<testcase\b[^>]*\bname=(["'])(.*?)\1[^>]*>(?:(?!<\/testcase>).)*<(failure|error)\b/si)
+        def matcher = (xmlText =~ /(?si)<testcase\b[^>]*\bname=(["'])(.*?)\1[^>]*>(?:(?!<\/testcase>).)*<(failure|error)\b/)
         while (matcher.find()) {
             def name = matcher.group(2)?.trim()
             if (name) {
