@@ -44,6 +44,11 @@ pipeline {
             defaultValue: false,
             description: 'Clear old reports and generate fresh Excel + Allure output.'
         )
+        booleanParam(
+            name: 'RESET_JOB_BUILD_HISTORY',
+            defaultValue: false,
+            description: 'Delete previous completed builds for this job and reset next build number to 1.'
+        )
         string(
             name: 'ADDITIONAL_EMAILS',
             defaultValue: '',
@@ -83,6 +88,17 @@ pipeline {
                     }
                     def shortCommit = env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'N/A'
                     echo "Branch: ${env.BRANCH_NAME ?: 'main'} | Commit: ${shortCommit}"
+                }
+            }
+        }
+
+        stage('Reset Build History (Optional)') {
+            when {
+                expression { params.RESET_JOB_BUILD_HISTORY as boolean }
+            }
+            steps {
+                script {
+                    resetCurrentJobBuildHistory()
                 }
             }
         }
@@ -649,4 +665,42 @@ def collectRecipientEmails(String defaultEmail, String additionalEmails) {
 
     echo "Email recipients resolved: ${recipients.join(', ')}"
     return recipients
+}
+
+def resetCurrentJobBuildHistory() {
+    def job = currentBuild?.rawBuild?.parent
+    def currentBuildNumber = currentBuild?.number as int
+
+    if (job == null) {
+        echo 'Unable to resolve Jenkins job from current build context; skipping history reset.'
+        return
+    }
+
+    int deletedCount = 0
+    def deleteErrors = []
+
+    job.builds.each { run ->
+        if ((run.number as int) != currentBuildNumber) {
+            try {
+                run.delete()
+                deletedCount++
+            } catch (Exception ex) {
+                deleteErrors << "#${run.number}: ${ex.message}"
+            }
+        }
+    }
+
+    try {
+        job.updateNextBuildNumber(1)
+        echo "Reset build history complete. Deleted ${deletedCount} build(s). Next build number set to 1."
+    } catch (Exception ex) {
+        echo "Deleted ${deletedCount} build(s), but could not set next build number to 1: ${ex.message}"
+        echo 'Tip: this may require Jenkins script approval or additional permissions.'
+    }
+
+    if (!deleteErrors.isEmpty()) {
+        echo "Some builds could not be deleted: ${deleteErrors.join(' | ')}"
+    }
+
+    echo "Current running build #${currentBuildNumber} is intentionally kept."
 }
