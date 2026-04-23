@@ -495,7 +495,17 @@ def sendEmailNotification(String buildStatus) {
     def allureUrl = "${jobUrl}allure"
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
     def passRate = stats.total > 0 ? ((stats.passed * 100) / stats.total) as int : 0
-    def failedTestSummary = failedTests ? failedTests.join('<br/>') : 'None'
+    def cleanedFailedTests = failedTests.collect { name ->
+        (name ?: '')
+            .replaceAll(/(?i)exccedded/, 'exceeded')
+            .replaceAll(/(?i)\btab\(s\)\b/, 'Tabs')
+            .trim()
+    }.findAll { it }
+    def failedTestSummary = cleanedFailedTests
+        ? cleanedFailedTests.collect { item ->
+            "<div style=\"margin:0 0 6px;padding:7px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;\">${item}</div>"
+        }.join('')
+        : '<span style="color:#065f46;font-weight:600;">No failed tests or tab timeouts were detected in this run.</span>'
 
     def statusCfg = [
         SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
@@ -530,7 +540,7 @@ def sendEmailNotification(String buildStatus) {
               <h3 style="margin:0 0 12px;color:#0f172a;font-size:17px;">Build Details</h3>
               <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#f8faff 0%,#fdfdff 100%);table-layout:fixed;">
                 <tr>
-                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Failed Test / Tab Name(s)</strong></td>
+                  <td width="32%" style="padding:10px 12px;background:linear-gradient(180deg,#e0e7ff 0%,#eef2ff 100%);border-bottom:1px solid #c7d2fe;"><strong>Failed Tests / Affected Tabs</strong></td>
                   <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;line-height:1.45;">${failedTestSummary}</td>
                 </tr>
                 <tr>
