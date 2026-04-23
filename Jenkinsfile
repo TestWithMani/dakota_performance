@@ -668,39 +668,50 @@ def collectRecipientEmails(String defaultEmail, String additionalEmails) {
 }
 
 def resetCurrentJobBuildHistory() {
-    def job = currentBuild?.rawBuild?.parent
-    def currentBuildNumber = currentBuild?.number as int
+    try {
+        def job = currentBuild?.rawBuild?.parent
+        def currentBuildNumber = currentBuild?.number as int
 
-    if (job == null) {
-        echo 'Unable to resolve Jenkins job from current build context; skipping history reset.'
-        return
-    }
+        if (job == null) {
+            echo 'Unable to resolve Jenkins job from current build context; skipping history reset.'
+            return
+        }
 
-    int deletedCount = 0
-    def deleteErrors = []
+        int deletedCount = 0
+        def deleteErrors = []
 
-    job.builds.each { run ->
-        if ((run.number as int) != currentBuildNumber) {
-            try {
-                run.delete()
-                deletedCount++
-            } catch (Exception ex) {
-                deleteErrors << "#${run.number}: ${ex.message}"
+        job.builds.each { run ->
+            if ((run.number as int) != currentBuildNumber) {
+                try {
+                    run.delete()
+                    deletedCount++
+                } catch (Exception ex) {
+                    deleteErrors << "#${run.number}: ${ex.message}"
+                }
             }
         }
-    }
 
-    try {
-        job.updateNextBuildNumber(1)
-        echo "Reset build history complete. Deleted ${deletedCount} build(s). Next build number set to 1."
+        try {
+            job.updateNextBuildNumber(1)
+            echo "Reset build history complete. Deleted ${deletedCount} build(s). Next build number set to 1."
+        } catch (Exception ex) {
+            echo "Deleted ${deletedCount} build(s), but could not set next build number to 1: ${ex.message}"
+            echo 'Tip: this may require Jenkins script approval or additional permissions.'
+        }
+
+        if (!deleteErrors.isEmpty()) {
+            echo "Some builds could not be deleted: ${deleteErrors.join(' | ')}"
+        }
+
+        echo "Current running build #${currentBuildNumber} is intentionally kept."
     } catch (Exception ex) {
-        echo "Deleted ${deletedCount} build(s), but could not set next build number to 1: ${ex.message}"
-        echo 'Tip: this may require Jenkins script approval or additional permissions.'
+        def msg = ex?.message ?: ''
+        if (msg.contains('Scripts not permitted')) {
+            echo 'RESET_JOB_BUILD_HISTORY was requested, but Jenkins sandbox blocked access.'
+            echo 'Please approve the pending signatures in Manage Jenkins > In-process Script Approval, then rerun.'
+            echo "Sandbox error detail: ${msg}"
+            return
+        }
+        echo "Build-history reset skipped due to error: ${msg}"
     }
-
-    if (!deleteErrors.isEmpty()) {
-        echo "Some builds could not be deleted: ${deleteErrors.join(' | ')}"
-    }
-
-    echo "Current running build #${currentBuildNumber} is intentionally kept."
 }
