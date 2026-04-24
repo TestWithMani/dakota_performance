@@ -11,61 +11,57 @@ pipeline {
     parameters {
         choice(
             name: 'TEST_SELECTION_MODE',
-            choices: ['ALL_TABS', 'SELECTED_TESTS'],
-            description: 'ALL_TABS runs the full suite. SELECTED_TESTS runs only items listed in SELECTED_TEST_CASES.'
+            choices: ['ALL_TABS', 'CHECKBOX_SELECTION'],
+            description: 'ALL_TABS runs the full suite. CHECKBOX_SELECTION runs only checked testcases below.'
         )
-        text(
-            name: 'SELECTED_TEST_CASES',
-            defaultValue: '''test_13f_filings_investments_search_tab_performance
-test_13f_filings_tab_performance
-test_accounts_tab_performance
-test_all_documents_tab_performance
-test_benchmarking_tab_performance
-test_conference_dashboard_tab_performance
-test_conference_tab_performance
-test_consultant_reviews_dashboard_tab_performance
-test_contact_tab_performance
-test_custom_portfolio_dashboard_tab_performance
-test_custom_portfolio_dashboard_v2_tab_performance
-test_dakota_city_guides_tab_performance
-test_dakota_joe_reports_tab_performance
-test_dakota_videos_tab_performance
-test_evergreen_fund_performance_tab_performance
-test_fee_schedules_dashboard_tab_performance
-test_forecasted_transactions_tab_performance
-test_fund_family_memos_tab_performance
-test_fund_launches_tab_performance
-test_fundraising_news_tab_performance
-test_hedge_fund_performance_tab_performance
-test_investment_allocator_contacts_tab_performance
-test_investment_allocator_metro_areas_tab_performance
-test_investment_allocator_tab_performance
-test_investment_firm_contacts_tab_performance
-test_investment_firm_metro_area_tab_performance
-test_investment_firm_tab_performance
-test_manager_presentation_dashboard_tab_performance
-test_marketplace_home_tab_performance
-test_marketplace_searches_tab_performance
-test_metro_area_tab_performance
-test_my_account_tab_performance
-test_pension_documents_tab_performance
-test_portfolio_companies_metro_area_tab_performance
-test_portfolio_companies_metro_areas_tab_performance
-test_portfolio_companies_tab_performance
-test_private_companies_transactions_tab_performance
-test_private_fund_search_tab_performance
-test_public_company_search_tab_performance
-test_public_investments_search_tab_performance
-test_public_plan_minute_tab_performance
-test_recent_transactions_tab_performance
-test_reports_everything_tab_performance
-test_reports_mru_tab_performance
-test_reports_user_folders_tab_performance
-test_searches_dashboard_tab_performance
-test_university_alumni_tab_performance
-test_wealth_channel_metro_areas_tab_performance''',
-            description: 'Used only when TEST_SELECTION_MODE=SELECTED_TESTS. Provide test IDs, file names, or tests/... paths (one per line or comma-separated).'
-        )
+        booleanParam(name: 'TAB_13F_FILINGS_INVESTMENTS_SEARCH', defaultValue: false, description: 'Run 13F Filings Investments Search tab test.')
+        booleanParam(name: 'TAB_13F_FILINGS', defaultValue: false, description: 'Run 13F Filings tab test.')
+        booleanParam(name: 'TAB_ACCOUNTS', defaultValue: false, description: 'Run Accounts tab test.')
+        booleanParam(name: 'TAB_ALL_DOCUMENTS', defaultValue: false, description: 'Run All Documents tab test.')
+        booleanParam(name: 'TAB_BENCHMARKING', defaultValue: false, description: 'Run Benchmarking tab test.')
+        booleanParam(name: 'TAB_CONFERENCE_DASHBOARD', defaultValue: false, description: 'Run Conference Dashboard tab test.')
+        booleanParam(name: 'TAB_CONFERENCE', defaultValue: false, description: 'Run Conference tab test.')
+        booleanParam(name: 'TAB_CONSULTANT_REVIEWS_DASHBOARD', defaultValue: false, description: 'Run Consultant Reviews Dashboard tab test.')
+        booleanParam(name: 'TAB_CONTACT', defaultValue: false, description: 'Run Contact tab test.')
+        booleanParam(name: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD', defaultValue: false, description: 'Run Custom Portfolio Dashboard tab test.')
+        booleanParam(name: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD_V2', defaultValue: false, description: 'Run Custom Portfolio Dashboard V2 tab test.')
+        booleanParam(name: 'TAB_DAKOTA_CITY_GUIDES', defaultValue: false, description: 'Run Dakota City Guides tab test.')
+        booleanParam(name: 'TAB_DAKOTA_JOE_REPORTS', defaultValue: false, description: 'Run Dakota Joe Reports tab test.')
+        booleanParam(name: 'TAB_DAKOTA_VIDEOS', defaultValue: false, description: 'Run Dakota Videos tab test.')
+        booleanParam(name: 'TAB_EVERGREEN_FUND_PERFORMANCE', defaultValue: false, description: 'Run Evergreen Fund Performance tab test.')
+        booleanParam(name: 'TAB_FEE_SCHEDULES_DASHBOARD', defaultValue: false, description: 'Run Fee Schedules Dashboard tab test.')
+        booleanParam(name: 'TAB_FORECASTED_TRANSACTIONS', defaultValue: false, description: 'Run Forecasted Transactions tab test.')
+        booleanParam(name: 'TAB_FUND_FAMILY_MEMOS', defaultValue: false, description: 'Run Fund Family Memos tab test.')
+        booleanParam(name: 'TAB_FUND_LAUNCHES', defaultValue: false, description: 'Run Fund Launches tab test.')
+        booleanParam(name: 'TAB_FUNDRAISING_NEWS', defaultValue: false, description: 'Run Fundraising News tab test.')
+        booleanParam(name: 'TAB_HEDGE_FUND_PERFORMANCE', defaultValue: false, description: 'Run Hedge Fund Performance tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_ALLOCATOR_CONTACTS', defaultValue: false, description: 'Run Investment Allocator Contacts tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_ALLOCATOR_METRO_AREAS', defaultValue: false, description: 'Run Investment Allocator Metro Areas tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_ALLOCATOR', defaultValue: false, description: 'Run Investment Allocator tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_FIRM_CONTACTS', defaultValue: false, description: 'Run Investment Firm Contacts tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_FIRM_METRO_AREA', defaultValue: false, description: 'Run Investment Firm Metro Area tab test.')
+        booleanParam(name: 'TAB_INVESTMENT_FIRM', defaultValue: false, description: 'Run Investment Firm tab test.')
+        booleanParam(name: 'TAB_MANAGER_PRESENTATION_DASHBOARD', defaultValue: false, description: 'Run Manager Presentation Dashboard tab test.')
+        booleanParam(name: 'TAB_MARKETPLACE_HOME', defaultValue: false, description: 'Run Marketplace Home tab test.')
+        booleanParam(name: 'TAB_MARKETPLACE_SEARCHES', defaultValue: false, description: 'Run Marketplace Searches tab test.')
+        booleanParam(name: 'TAB_METRO_AREA', defaultValue: false, description: 'Run Metro Area tab test.')
+        booleanParam(name: 'TAB_MY_ACCOUNT', defaultValue: false, description: 'Run My Account tab test.')
+        booleanParam(name: 'TAB_PENSION_DOCUMENTS', defaultValue: false, description: 'Run Pension Documents tab test.')
+        booleanParam(name: 'TAB_PORTFOLIO_COMPANIES_METRO_AREA', defaultValue: false, description: 'Run Portfolio Companies Metro Area tab test.')
+        booleanParam(name: 'TAB_PORTFOLIO_COMPANIES_METRO_AREAS', defaultValue: false, description: 'Run Portfolio Companies Metro Areas tab test.')
+        booleanParam(name: 'TAB_PORTFOLIO_COMPANIES', defaultValue: false, description: 'Run Portfolio Companies tab test.')
+        booleanParam(name: 'TAB_PRIVATE_COMPANIES_TRANSACTIONS', defaultValue: false, description: 'Run Private Companies Transactions tab test.')
+        booleanParam(name: 'TAB_PRIVATE_FUND_SEARCH', defaultValue: false, description: 'Run Private Fund Search tab test.')
+        booleanParam(name: 'TAB_PUBLIC_COMPANY_SEARCH', defaultValue: false, description: 'Run Public Company Search tab test.')
+        booleanParam(name: 'TAB_PUBLIC_INVESTMENTS_SEARCH', defaultValue: false, description: 'Run Public Investments Search tab test.')
+        booleanParam(name: 'TAB_PUBLIC_PLAN_MINUTE', defaultValue: false, description: 'Run Public Plan Minute tab test.')
+        booleanParam(name: 'TAB_RECENT_TRANSACTIONS', defaultValue: false, description: 'Run Recent Transactions tab test.')
+        booleanParam(name: 'TAB_REPORTS_EVERYTHING', defaultValue: false, description: 'Run Reports Everything tab test.')
+        booleanParam(name: 'TAB_REPORTS_MRU', defaultValue: false, description: 'Run Reports MRU tab test.')
+        booleanParam(name: 'TAB_REPORTS_USER_FOLDERS', defaultValue: false, description: 'Run Reports User Folders tab test.')
+        booleanParam(name: 'TAB_SEARCHES_DASHBOARD', defaultValue: false, description: 'Run Searches Dashboard tab test.')
+        booleanParam(name: 'TAB_UNIVERSITY_ALUMNI', defaultValue: false, description: 'Run University Alumni tab test.')
+        booleanParam(name: 'TAB_WEALTH_CHANNEL_METRO_AREAS', defaultValue: false, description: 'Run Wealth Channel Metro Areas tab test.')
         booleanParam(
             name: 'RUN_ALLURE',
             defaultValue: true,
@@ -233,7 +229,7 @@ test_wealth_channel_metro_areas_tab_performance''',
                 script {
                     def selectedTestFiles = resolveSelectedTestFiles(
                         params.TEST_SELECTION_MODE as String,
-                        params.SELECTED_TEST_CASES as String
+                        params
                     )
                     echo "Selection mode -> ${params.TEST_SELECTION_MODE}"
                     echo "Selected ${selectedTestFiles.size()} test files."
@@ -249,7 +245,7 @@ test_wealth_channel_metro_areas_tab_performance''',
                     def runCmd = buildPytestCommand(
                         resolveSelectedTestFiles(
                             params.TEST_SELECTION_MODE as String,
-                            params.SELECTED_TEST_CASES as String
+                            params
                         ),
                         params.RUN_ALLURE as boolean,
                         params.ENABLE_INFRA_RETRY as boolean,
@@ -393,7 +389,7 @@ def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enable
     return parts.join(' ')
 }
 
-def resolveSelectedTestFiles(String selectionMode, String selectedValuesRaw) {
+def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
     def allFiles = getAvailableTestCaseFiles()
     def mode = (selectionMode ?: 'ALL_TABS').trim().toUpperCase()
 
@@ -401,70 +397,15 @@ def resolveSelectedTestFiles(String selectionMode, String selectedValuesRaw) {
         return allFiles
     }
 
-    def tokens = (selectedValuesRaw ?: '')
-        .split(/[\r\n,;]+/)
-        .collect { it?.trim() }
-        .findAll { it }
+    def checkboxMap = getTestCaseCheckboxMap()
+    def resolved = checkboxMap
+        .findAll { row -> (paramsObj."${row.param}" as boolean) }
+        .collect { row -> row.file }
+        .unique()
+        .sort()
 
-    if (tokens.isEmpty()) {
-        error('SELECTED_TEST_CASES is empty. Add one or more test IDs, or switch TEST_SELECTION_MODE to ALL_TABS.')
-    }
-
-    def lookup = [:]
-    allFiles.each { filePath ->
-        def normalizedPath = filePath.replace('\\', '/')
-        def baseName = normalizedPath.tokenize('/').last()
-        def testId = baseName.replaceFirst(/\.py$/, '')
-        lookup[normalizedPath.toLowerCase()] = normalizedPath
-        lookup[baseName.toLowerCase()] = normalizedPath
-        lookup[testId.toLowerCase()] = normalizedPath
-    }
-
-    def allRequested = false
-    def selected = []
-    def unknown = []
-
-    tokens.each { rawToken ->
-        def token = rawToken.trim().replace('\\', '/')
-        def lower = token.toLowerCase()
-        if (lower in ['all', 'all_tabs', 'alltabs']) {
-            allRequested = true
-            return
-        }
-
-        def direct = lookup[lower]
-        if (!direct && !lower.startsWith('tests/')) {
-            direct = lookup["tests/${lower}"]
-        }
-        if (!direct && lower.startsWith('test_') && !lower.endsWith('.py')) {
-            direct = lookup["${lower}.py"]
-        }
-        if (!direct && lower.endsWith('.py') && !lower.startsWith('tests/')) {
-            direct = lookup["tests/${lower}"]
-        }
-
-        if (direct) {
-            selected << direct
-        } else {
-            unknown << rawToken
-        }
-    }
-
-    if (allRequested) {
-        return allFiles
-    }
-
-    if (!unknown.isEmpty()) {
-        def validExamples = getAvailableTestCaseIds().take(10).join(', ')
-        error(
-            "Unknown test selections: ${unknown.join(', ')}. " +
-            "Use valid IDs/file names from SELECTED_TEST_CASES defaults. Example IDs: ${validExamples}"
-        )
-    }
-
-    def resolved = selected.unique().sort()
     if (resolved.isEmpty()) {
-        error('No valid tests resolved from SELECTED_TEST_CASES.')
+        error('No tab checkbox selected. Either select one or more tab checkboxes, or set TEST_SELECTION_MODE=ALL_TABS.')
     }
     return resolved
 }
@@ -526,6 +467,59 @@ def getAvailableTestCaseIds() {
     return getAvailableTestCaseFiles()
         .collect { it.tokenize('/').last().replaceFirst(/\.py$/, '') }
         .sort()
+}
+
+def getTestCaseCheckboxMap() {
+    return [
+        [param: 'TAB_13F_FILINGS_INVESTMENTS_SEARCH', file: 'tests/test_13f_filings_investments_search_tab_performance.py'],
+        [param: 'TAB_13F_FILINGS', file: 'tests/test_13f_filings_tab_performance.py'],
+        [param: 'TAB_ACCOUNTS', file: 'tests/test_accounts_tab_performance.py'],
+        [param: 'TAB_ALL_DOCUMENTS', file: 'tests/test_all_documents_tab_performance.py'],
+        [param: 'TAB_BENCHMARKING', file: 'tests/test_benchmarking_tab_performance.py'],
+        [param: 'TAB_CONFERENCE_DASHBOARD', file: 'tests/test_conference_dashboard_tab_performance.py'],
+        [param: 'TAB_CONFERENCE', file: 'tests/test_conference_tab_performance.py'],
+        [param: 'TAB_CONSULTANT_REVIEWS_DASHBOARD', file: 'tests/test_consultant_reviews_dashboard_tab_performance.py'],
+        [param: 'TAB_CONTACT', file: 'tests/test_contact_tab_performance.py'],
+        [param: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD', file: 'tests/test_custom_portfolio_dashboard_tab_performance.py'],
+        [param: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD_V2', file: 'tests/test_custom_portfolio_dashboard_v2_tab_performance.py'],
+        [param: 'TAB_DAKOTA_CITY_GUIDES', file: 'tests/test_dakota_city_guides_tab_performance.py'],
+        [param: 'TAB_DAKOTA_JOE_REPORTS', file: 'tests/test_dakota_joe_reports_tab_performance.py'],
+        [param: 'TAB_DAKOTA_VIDEOS', file: 'tests/test_dakota_videos_tab_performance.py'],
+        [param: 'TAB_EVERGREEN_FUND_PERFORMANCE', file: 'tests/test_evergreen_fund_performance_tab_performance.py'],
+        [param: 'TAB_FEE_SCHEDULES_DASHBOARD', file: 'tests/test_fee_schedules_dashboard_tab_performance.py'],
+        [param: 'TAB_FORECASTED_TRANSACTIONS', file: 'tests/test_forecasted_transactions_tab_performance.py'],
+        [param: 'TAB_FUND_FAMILY_MEMOS', file: 'tests/test_fund_family_memos_tab_performance.py'],
+        [param: 'TAB_FUND_LAUNCHES', file: 'tests/test_fund_launches_tab_performance.py'],
+        [param: 'TAB_FUNDRAISING_NEWS', file: 'tests/test_fundraising_news_tab_performance.py'],
+        [param: 'TAB_HEDGE_FUND_PERFORMANCE', file: 'tests/test_hedge_fund_performance_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_ALLOCATOR_CONTACTS', file: 'tests/test_investment_allocator_contacts_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_ALLOCATOR_METRO_AREAS', file: 'tests/test_investment_allocator_metro_areas_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_ALLOCATOR', file: 'tests/test_investment_allocator_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_FIRM_CONTACTS', file: 'tests/test_investment_firm_contacts_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_FIRM_METRO_AREA', file: 'tests/test_investment_firm_metro_area_tab_performance.py'],
+        [param: 'TAB_INVESTMENT_FIRM', file: 'tests/test_investment_firm_tab_performance.py'],
+        [param: 'TAB_MANAGER_PRESENTATION_DASHBOARD', file: 'tests/test_manager_presentation_dashboard_tab_performance.py'],
+        [param: 'TAB_MARKETPLACE_HOME', file: 'tests/test_marketplace_home_tab_performance.py'],
+        [param: 'TAB_MARKETPLACE_SEARCHES', file: 'tests/test_marketplace_searches_tab_performance.py'],
+        [param: 'TAB_METRO_AREA', file: 'tests/test_metro_area_tab_performance.py'],
+        [param: 'TAB_MY_ACCOUNT', file: 'tests/test_my_account_tab_performance.py'],
+        [param: 'TAB_PENSION_DOCUMENTS', file: 'tests/test_pension_documents_tab_performance.py'],
+        [param: 'TAB_PORTFOLIO_COMPANIES_METRO_AREA', file: 'tests/test_portfolio_companies_metro_area_tab_performance.py'],
+        [param: 'TAB_PORTFOLIO_COMPANIES_METRO_AREAS', file: 'tests/test_portfolio_companies_metro_areas_tab_performance.py'],
+        [param: 'TAB_PORTFOLIO_COMPANIES', file: 'tests/test_portfolio_companies_tab_performance.py'],
+        [param: 'TAB_PRIVATE_COMPANIES_TRANSACTIONS', file: 'tests/test_private_companies_transactions_tab_performance.py'],
+        [param: 'TAB_PRIVATE_FUND_SEARCH', file: 'tests/test_private_fund_search_tab_performance.py'],
+        [param: 'TAB_PUBLIC_COMPANY_SEARCH', file: 'tests/test_public_company_search_tab_performance.py'],
+        [param: 'TAB_PUBLIC_INVESTMENTS_SEARCH', file: 'tests/test_public_investments_search_tab_performance.py'],
+        [param: 'TAB_PUBLIC_PLAN_MINUTE', file: 'tests/test_public_plan_minute_tab_performance.py'],
+        [param: 'TAB_RECENT_TRANSACTIONS', file: 'tests/test_recent_transactions_tab_performance.py'],
+        [param: 'TAB_REPORTS_EVERYTHING', file: 'tests/test_reports_everything_tab_performance.py'],
+        [param: 'TAB_REPORTS_MRU', file: 'tests/test_reports_mru_tab_performance.py'],
+        [param: 'TAB_REPORTS_USER_FOLDERS', file: 'tests/test_reports_user_folders_tab_performance.py'],
+        [param: 'TAB_SEARCHES_DASHBOARD', file: 'tests/test_searches_dashboard_tab_performance.py'],
+        [param: 'TAB_UNIVERSITY_ALUMNI', file: 'tests/test_university_alumni_tab_performance.py'],
+        [param: 'TAB_WEALTH_CHANNEL_METRO_AREAS', file: 'tests/test_wealth_channel_metro_areas_tab_performance.py']
+    ]
 }
 
 def runShell(String unixCommand, String windowsCommand) {
