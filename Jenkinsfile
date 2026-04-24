@@ -425,11 +425,25 @@ def getFailedTestNames() {
 
     try {
         def xmlText = readFile(junitPath)
-        def matcher = (xmlText =~ /(?si)<testcase\b[^>]*\bname=(["'])(.*?)\1[^>]*>(?:(?!<\/testcase>).)*<(failure|error)\b/)
+        def matcher = (xmlText =~ /(?si)<testcase\b([^>]*)>(?:(?!<\/testcase>).)*<(failure|error)\b/)
         while (matcher.find()) {
-            def name = matcher.group(2)?.trim()
-            if (name) {
-                failures << name
+            def attrs = matcher.group(1) ?: ''
+            def nameMatcher = (attrs =~ /\bname=(["'])(.*?)\1/)
+            def classMatcher = (attrs =~ /\bclassname=(["'])(.*?)\1/)
+            def name = nameMatcher.find() ? nameMatcher.group(2)?.trim() : ''
+            def className = classMatcher.find() ? classMatcher.group(2)?.trim() : ''
+
+            // Some pytest/JUnit variants emit a generic testcase name and keep tab identity in classname.
+            def candidate = name
+            if (
+                (!candidate || !(candidate ==~ /(?i).*(tab|dashboard|metro|reports|documents|accounts|contacts|transactions).*/ || candidate.startsWith('test_')))
+                && className
+            ) {
+                candidate = className.tokenize('.').last()
+            }
+
+            if (candidate) {
+                failures << candidate
             }
         }
     } catch (Exception ex) {
@@ -634,6 +648,15 @@ def normalizeFailedTestNameToTab(String testName) {
     def value = (testName ?: '').trim()
     if (!value) {
         return value
+    }
+
+    // Handle JUnit forms like package.module::test_name or tests.test_file.py::test_name.
+    value = value
+        .replaceFirst(/^.*::/, '')
+        .replaceFirst(/^.*[\\\/]/, '')
+        .replaceFirst(/\.py$/, '')
+    if (value.contains('.') && value.tokenize('.').last().startsWith('test_')) {
+        value = value.tokenize('.').last()
     }
 
     // Convert pytest case names like test_foo_bar_tab_render_performance to tab labels.
