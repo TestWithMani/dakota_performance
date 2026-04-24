@@ -69,18 +69,24 @@ def _read_windows_user_env(variable_name: str) -> str | None:
 
 
 def _read_from_dotenv(variable_name: str) -> str | None:
-    """Read credential from local .env file if present."""
-    dotenv_path = Path(__file__).resolve().parent / ".env"
-    if not dotenv_path.exists():
-        return None
+    """Read credential from .env in project root (or package dir fallback)."""
+    project_root = Path(__file__).resolve().parents[1]
+    candidate_paths = [
+        project_root / ".env",
+        Path(__file__).resolve().parent / ".env",
+    ]
 
-    for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    for dotenv_path in candidate_paths:
+        if not dotenv_path.exists():
             continue
-        key, value = line.split("=", 1)
-        if key.strip() != variable_name:
-            continue
-        cleaned = value.strip().strip('"').strip("'")
-        return cleaned or None
+
+        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key.strip() != variable_name:
+                continue
+            cleaned = value.strip().strip('"').strip("'")
+            return cleaned or None
     return None

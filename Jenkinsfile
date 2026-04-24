@@ -64,6 +64,11 @@ pipeline {
             defaultValue: 'sf-marketplace-creds',
             description: 'Jenkins credential ID used for Salesforce login automation.'
         )
+        string(
+            name: 'ALLURE_TOOL_NAME',
+            defaultValue: '',
+            description: 'Optional Jenkins Allure tool name. Leave blank to use plugin default.'
+        )
     }
 
     environment {
@@ -155,7 +160,7 @@ pipeline {
                             '''
                                 if exist "salesforce_tab_performance\\performance_results.xlsx" del /q "salesforce_tab_performance\\performance_results.xlsx"
                                 if exist "salesforce_tab_performance\\Dakota Marketplace Performance.xlsx" del /q "salesforce_tab_performance\\Dakota Marketplace Performance.xlsx"
-                                del /q "salesforce_tab_performance\\Dakota Matketplace Performance - *.xlsx" 2>nul
+                                del /q "salesforce_tab_performance\\Dakota Marketplace Performance - *.xlsx" 2>nul
                                 if exist allure-report rmdir /s /q allure-report
                             '''
                         )
@@ -240,15 +245,19 @@ pipeline {
                     }
 
                     if (params.RUN_ALLURE && fileExists(env.ALLURE_DIR)) {
-                        allure([
-                            commandline: 'allure-2.34.1',
+                        def allureArgs = [
                             includeProperties: false,
                             jdk: '',
                             properties: [],
                             reportBuildPolicy: 'ALWAYS',
                             results: [[path: env.ALLURE_DIR]],
                             reportName: 'Allure Report'
-                        ])
+                        ]
+                        def configuredAllureTool = (params.ALLURE_TOOL_NAME ?: '').trim()
+                        if (configuredAllureTool) {
+                            allureArgs.commandline = configuredAllureTool
+                        }
+                        allure(allureArgs)
                     } else if (params.RUN_ALLURE) {
                         echo "Skipping Allure publish: ${env.ALLURE_DIR} directory not found."
                     }
@@ -267,7 +276,7 @@ pipeline {
                 if (fileExists('allure-results')) {
                     archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true
                 }
-                def excelArtifact = prepareExcelArtifactPath(params.FRESH_REPORT_OUTPUT as boolean)
+                def excelArtifact = prepareExcelArtifactPath()
                 if (excelArtifact) {
                     archiveArtifacts artifacts: excelArtifact, allowEmptyArchive: true
                 }
@@ -490,7 +499,7 @@ def sendEmailNotification(String buildStatus) {
     }
 
     def jobUrl = env.BUILD_URL ?: ''
-    def excelRelPath = prepareExcelArtifactPath(params.FRESH_REPORT_OUTPUT as boolean)
+    def excelRelPath = prepareExcelArtifactPath()
     def excelExists = excelRelPath ? fileExists(excelRelPath) : false
     def allureUrl = "${jobUrl}allure"
     def durationString = (currentBuild.durationString ?: 'N/A').replace(' and counting', '')
@@ -514,7 +523,6 @@ def sendEmailNotification(String buildStatus) {
         ABORTED : [bg: '#f8fafc', border: '#64748b', text: '#334155', pillBg: '#e2e8f0'],
         UNSTABLE: [bg: '#fffbeb', border: '#f59e0b', text: '#92400e', pillBg: '#fef3c7']
     ]
-    def cfg = statusCfg.get(actualStatus, statusCfg.UNSTABLE)
     def subject = "Dakota Marketplace Performance | ${new Date().format('yyyy-MM-dd')}"
 
     def body = """
@@ -661,7 +669,7 @@ def normalizeFailedTestNameToTab(String testName) {
     return label.toLowerCase().endsWith(' tab') ? label : "${label} Tab"
 }
 
-def prepareExcelArtifactPath(boolean freshMode) {
+def prepareExcelArtifactPath() {
     def baseDir = 'salesforce_tab_performance'
     def defaultExcel = "${baseDir}/performance_results.xlsx"
     def rootExcel = 'performance_results.xlsx'
