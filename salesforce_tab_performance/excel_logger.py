@@ -34,6 +34,7 @@ HEADER_FONT = Font(color="FFFFFF", bold=True)
 PASS_FILL = PatternFill(fill_type="solid", fgColor="E2F0D9")
 FAIL_FILL = PatternFill(fill_type="solid", fgColor="FCE4D6")
 SUMMARY_FILL = PatternFill(fill_type="solid", fgColor="E8EEF8")
+FAIL_RESULT_FONT = Font(color="C00000", bold=True)
 THIN_BORDER = Border(
     left=Side(style="thin", color="BFBFBF"),
     right=Side(style="thin", color="BFBFBF"),
@@ -186,6 +187,11 @@ def _style_data_row(sheet, row_number: int, is_summary: bool, is_pass: bool) -> 
             cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
         if is_summary:
             cell.font = Font(bold=True)
+
+    # Always make FAIL result visibly red in the Result column.
+    result_cell = sheet.cell(row=row_number, column=8)
+    if str(result_cell.value).strip().upper() == "FAIL":
+        result_cell.font = FAIL_RESULT_FONT
 
 
 def _set_sheet_layout(sheet) -> None:
