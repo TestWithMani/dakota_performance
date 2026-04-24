@@ -10,14 +10,61 @@ pipeline {
 
     parameters {
         choice(
-            name: 'TEST_SCOPE',
-            choices: ['marker','smoke', 'full'],
-            description: 'Choose test level: smoke (quick), marker (category), or full (complete suite).'
+            name: 'TEST_SELECTION_MODE',
+            choices: ['ALL_TABS', 'SELECTED_TESTS'],
+            description: 'ALL_TABS runs the full suite. SELECTED_TESTS runs only items listed in SELECTED_TEST_CASES.'
         )
-        choice(
-            name: 'PYTEST_MARKER',
-            choices: ['Test', 'reports', 'metro_areas', 'custom_dashboards', 'accounts', 'contacts', 'documents', 'transactions'],
-            description: 'Run a specific test category (only used when TEST_SCOPE = marker).'
+        text(
+            name: 'SELECTED_TEST_CASES',
+            defaultValue: '''test_13f_filings_investments_search_tab_performance
+test_13f_filings_tab_performance
+test_accounts_tab_performance
+test_all_documents_tab_performance
+test_benchmarking_tab_performance
+test_conference_dashboard_tab_performance
+test_conference_tab_performance
+test_consultant_reviews_dashboard_tab_performance
+test_contact_tab_performance
+test_custom_portfolio_dashboard_tab_performance
+test_custom_portfolio_dashboard_v2_tab_performance
+test_dakota_city_guides_tab_performance
+test_dakota_joe_reports_tab_performance
+test_dakota_videos_tab_performance
+test_evergreen_fund_performance_tab_performance
+test_fee_schedules_dashboard_tab_performance
+test_forecasted_transactions_tab_performance
+test_fund_family_memos_tab_performance
+test_fund_launches_tab_performance
+test_fundraising_news_tab_performance
+test_hedge_fund_performance_tab_performance
+test_investment_allocator_contacts_tab_performance
+test_investment_allocator_metro_areas_tab_performance
+test_investment_allocator_tab_performance
+test_investment_firm_contacts_tab_performance
+test_investment_firm_metro_area_tab_performance
+test_investment_firm_tab_performance
+test_manager_presentation_dashboard_tab_performance
+test_marketplace_home_tab_performance
+test_marketplace_searches_tab_performance
+test_metro_area_tab_performance
+test_my_account_tab_performance
+test_pension_documents_tab_performance
+test_portfolio_companies_metro_area_tab_performance
+test_portfolio_companies_metro_areas_tab_performance
+test_portfolio_companies_tab_performance
+test_private_companies_transactions_tab_performance
+test_private_fund_search_tab_performance
+test_public_company_search_tab_performance
+test_public_investments_search_tab_performance
+test_public_plan_minute_tab_performance
+test_recent_transactions_tab_performance
+test_reports_everything_tab_performance
+test_reports_mru_tab_performance
+test_reports_user_folders_tab_performance
+test_searches_dashboard_tab_performance
+test_university_alumni_tab_performance
+test_wealth_channel_metro_areas_tab_performance''',
+            description: 'Used only when TEST_SELECTION_MODE=SELECTED_TESTS. Provide test IDs, file names, or tests/... paths (one per line or comma-separated).'
         )
         booleanParam(
             name: 'RUN_ALLURE',
@@ -184,16 +231,14 @@ pipeline {
         stage('Static Validation') {
             steps {
                 script {
-                    if (params.TEST_SCOPE == 'marker') {
-                        if (!params.PYTEST_MARKER?.trim()) {
-                            error('PYTEST_MARKER must be provided when TEST_SCOPE=marker.')
-                        }
-                        echo "Marker mode selected -> running marker: ${params.PYTEST_MARKER}"
-                    } else {
-                        echo "Scope selected -> ${params.TEST_SCOPE} (marker parameter ignored)"
-                    }
+                    def selectedTestFiles = resolveSelectedTestFiles(
+                        params.TEST_SELECTION_MODE as String,
+                        params.SELECTED_TEST_CASES as String
+                    )
+                    echo "Selection mode -> ${params.TEST_SELECTION_MODE}"
+                    echo "Selected ${selectedTestFiles.size()} test files."
                     runPytest('--version')
-                    runPytest('--markers')
+                    runPytest("--collect-only -q ${selectedTestFiles.join(' ')}")
                 }
             }
         }
@@ -202,8 +247,10 @@ pipeline {
             steps {
                 script {
                     def runCmd = buildPytestCommand(
-                        params.TEST_SCOPE as String,
-                        params.PYTEST_MARKER as String,
+                        resolveSelectedTestFiles(
+                            params.TEST_SELECTION_MODE as String,
+                            params.SELECTED_TEST_CASES as String
+                        ),
                         params.RUN_ALLURE as boolean,
                         params.ENABLE_INFRA_RETRY as boolean,
                         params.INFRA_RETRY_COUNT as String
@@ -288,17 +335,7 @@ pipeline {
     }
 }
 
-def buildPytestCommand(String scope, String marker, boolean runAllure, boolean enableInfraRetry, String infraRetryCount) {
-    def selector = ''
-
-    if (scope == 'smoke') {
-        selector = '-m smoke'
-    } else if (scope == 'marker') {
-        selector = "-m ${marker}"
-    } else {
-        selector = ''
-    }
-
+def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enableInfraRetry, String infraRetryCount) {
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
     def parts = []
 
@@ -315,9 +352,6 @@ def buildPytestCommand(String scope, String marker, boolean runAllure, boolean e
     parts << '-o'
     parts << 'console_output_style=progress'
 
-    if (selector) {
-        parts << selector
-    }
     if (allureArg) {
         parts << allureArg
     }
@@ -352,8 +386,146 @@ def buildPytestCommand(String scope, String marker, boolean runAllure, boolean e
     parts << '--self-contained-html'
     parts << '--json-report'
     parts << "--json-report-file=${env.PYTEST_JSON}"
+    if (selectedTestFiles && !selectedTestFiles.isEmpty()) {
+        parts.addAll(selectedTestFiles)
+    }
 
     return parts.join(' ')
+}
+
+def resolveSelectedTestFiles(String selectionMode, String selectedValuesRaw) {
+    def allFiles = getAvailableTestCaseFiles()
+    def mode = (selectionMode ?: 'ALL_TABS').trim().toUpperCase()
+
+    if (mode == 'ALL_TABS') {
+        return allFiles
+    }
+
+    def tokens = (selectedValuesRaw ?: '')
+        .split(/[\r\n,;]+/)
+        .collect { it?.trim() }
+        .findAll { it }
+
+    if (tokens.isEmpty()) {
+        error('SELECTED_TEST_CASES is empty. Add one or more test IDs, or switch TEST_SELECTION_MODE to ALL_TABS.')
+    }
+
+    def lookup = [:]
+    allFiles.each { filePath ->
+        def normalizedPath = filePath.replace('\\', '/')
+        def baseName = normalizedPath.tokenize('/').last()
+        def testId = baseName.replaceFirst(/\.py$/, '')
+        lookup[normalizedPath.toLowerCase()] = normalizedPath
+        lookup[baseName.toLowerCase()] = normalizedPath
+        lookup[testId.toLowerCase()] = normalizedPath
+    }
+
+    def allRequested = false
+    def selected = []
+    def unknown = []
+
+    tokens.each { rawToken ->
+        def token = rawToken.trim().replace('\\', '/')
+        def lower = token.toLowerCase()
+        if (lower in ['all', 'all_tabs', 'alltabs']) {
+            allRequested = true
+            return
+        }
+
+        def direct = lookup[lower]
+        if (!direct && !lower.startsWith('tests/')) {
+            direct = lookup["tests/${lower}"]
+        }
+        if (!direct && lower.startsWith('test_') && !lower.endsWith('.py')) {
+            direct = lookup["${lower}.py"]
+        }
+        if (!direct && lower.endsWith('.py') && !lower.startsWith('tests/')) {
+            direct = lookup["tests/${lower}"]
+        }
+
+        if (direct) {
+            selected << direct
+        } else {
+            unknown << rawToken
+        }
+    }
+
+    if (allRequested) {
+        return allFiles
+    }
+
+    if (!unknown.isEmpty()) {
+        def validExamples = getAvailableTestCaseIds().take(10).join(', ')
+        error(
+            "Unknown test selections: ${unknown.join(', ')}. " +
+            "Use valid IDs/file names from SELECTED_TEST_CASES defaults. Example IDs: ${validExamples}"
+        )
+    }
+
+    def resolved = selected.unique().sort()
+    if (resolved.isEmpty()) {
+        error('No valid tests resolved from SELECTED_TEST_CASES.')
+    }
+    return resolved
+}
+
+def getAvailableTestCaseFiles() {
+    return [
+        'tests/test_13f_filings_investments_search_tab_performance.py',
+        'tests/test_13f_filings_tab_performance.py',
+        'tests/test_accounts_tab_performance.py',
+        'tests/test_all_documents_tab_performance.py',
+        'tests/test_benchmarking_tab_performance.py',
+        'tests/test_conference_dashboard_tab_performance.py',
+        'tests/test_conference_tab_performance.py',
+        'tests/test_consultant_reviews_dashboard_tab_performance.py',
+        'tests/test_contact_tab_performance.py',
+        'tests/test_custom_portfolio_dashboard_tab_performance.py',
+        'tests/test_custom_portfolio_dashboard_v2_tab_performance.py',
+        'tests/test_dakota_city_guides_tab_performance.py',
+        'tests/test_dakota_joe_reports_tab_performance.py',
+        'tests/test_dakota_videos_tab_performance.py',
+        'tests/test_evergreen_fund_performance_tab_performance.py',
+        'tests/test_fee_schedules_dashboard_tab_performance.py',
+        'tests/test_forecasted_transactions_tab_performance.py',
+        'tests/test_fund_family_memos_tab_performance.py',
+        'tests/test_fund_launches_tab_performance.py',
+        'tests/test_fundraising_news_tab_performance.py',
+        'tests/test_hedge_fund_performance_tab_performance.py',
+        'tests/test_investment_allocator_contacts_tab_performance.py',
+        'tests/test_investment_allocator_metro_areas_tab_performance.py',
+        'tests/test_investment_allocator_tab_performance.py',
+        'tests/test_investment_firm_contacts_tab_performance.py',
+        'tests/test_investment_firm_metro_area_tab_performance.py',
+        'tests/test_investment_firm_tab_performance.py',
+        'tests/test_manager_presentation_dashboard_tab_performance.py',
+        'tests/test_marketplace_home_tab_performance.py',
+        'tests/test_marketplace_searches_tab_performance.py',
+        'tests/test_metro_area_tab_performance.py',
+        'tests/test_my_account_tab_performance.py',
+        'tests/test_pension_documents_tab_performance.py',
+        'tests/test_portfolio_companies_metro_area_tab_performance.py',
+        'tests/test_portfolio_companies_metro_areas_tab_performance.py',
+        'tests/test_portfolio_companies_tab_performance.py',
+        'tests/test_private_companies_transactions_tab_performance.py',
+        'tests/test_private_fund_search_tab_performance.py',
+        'tests/test_public_company_search_tab_performance.py',
+        'tests/test_public_investments_search_tab_performance.py',
+        'tests/test_public_plan_minute_tab_performance.py',
+        'tests/test_recent_transactions_tab_performance.py',
+        'tests/test_reports_everything_tab_performance.py',
+        'tests/test_reports_mru_tab_performance.py',
+        'tests/test_reports_user_folders_tab_performance.py',
+        'tests/test_searches_dashboard_tab_performance.py',
+        'tests/test_university_alumni_tab_performance.py',
+        'tests/test_wealth_channel_metro_areas_tab_performance.py'
+    ]
+}
+
+def getAvailableTestCaseIds() {
+    return getAvailableTestCaseFiles()
+        .collect { it.tokenize('/').last().replaceFirst(/\.py$/, '') }
+        .sort()
 }
 
 def runShell(String unixCommand, String windowsCommand) {
