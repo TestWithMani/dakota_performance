@@ -392,17 +392,24 @@ def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enable
 def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
     def allFiles = getAvailableTestCaseFiles()
     def mode = (selectionMode ?: 'ALL_TABS').trim().toUpperCase()
-
-    if (mode == 'ALL_TABS') {
-        return allFiles
-    }
-
     def checkboxMap = getTestCaseCheckboxMap()
     def resolved = checkboxMap
         .findAll { row -> (paramsObj."${row.param}" as boolean) }
         .collect { row -> row.file }
         .unique()
         .sort()
+
+    // Safety override: if user selected checkboxes but forgot to switch mode, honor checkboxes.
+    if (!resolved.isEmpty()) {
+        if (mode == 'ALL_TABS') {
+            echo "Checkboxes detected (${resolved.size()}) while TEST_SELECTION_MODE=ALL_TABS; running selected checkboxes only."
+        }
+        return resolved
+    }
+
+    if (mode == 'ALL_TABS') {
+        return allFiles
+    }
 
     if (resolved.isEmpty()) {
         error('No tab checkbox selected. Either select one or more tab checkboxes, or set TEST_SELECTION_MODE=ALL_TABS.')
