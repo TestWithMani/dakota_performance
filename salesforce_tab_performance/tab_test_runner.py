@@ -15,17 +15,36 @@ from . import config
 from .credentials_utils import get_credential
 from .excel_logger import log_performance_results
 from .performance_utils import measure_component_render_time
+from .tabs_registry import get_tab_definition
 
 
 def run_tab_performance_test(
     driver,
-    tab_name: str,
-    tab_url: str,
+    tab_name: str | None = None,
+    tab_url: str | None = None,
+    tab_key: str | None = None,
     start_element_xpath: str | None = None,
     end_element_xpath: str | None = None,
-    end_condition: str = "visible",
+    end_condition: str | None = None,
 ) -> None:
     """Run login, navigate to tab, measure render times, and assert SLA."""
+    tab_definition = get_tab_definition(tab_key) if tab_key else None
+    tab_name = tab_name or (tab_definition.display_name if tab_definition else None)
+    tab_url = tab_url or (tab_definition.url if tab_definition else None)
+    end_element_xpath = (
+        end_element_xpath
+        if end_element_xpath is not None
+        else (tab_definition.end_element_xpath if tab_definition else None)
+    )
+    end_condition = (
+        end_condition
+        if end_condition is not None
+        else (tab_definition.end_condition if tab_definition and tab_definition.end_condition else "visible")
+    )
+
+    if not tab_name or not tab_url:
+        raise ValueError("run_tab_performance_test requires tab_name/tab_url or a valid tab_key")
+
     wait = WebDriverWait(driver, 30)
 
     with allure.step("Open login page and authenticate"):

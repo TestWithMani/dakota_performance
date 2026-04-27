@@ -4,12 +4,10 @@ import allure
 
 from salesforce_tab_performance.tab_test_runner import run_tab_performance_test
 
-
 @allure.feature("Salesforce Tab Performance")
 @allure.story("Dakota Videos Tab Component Render Completion")
 def test_dakota_videos_tab_render_performance(driver):
     run_tab_performance_test(
         driver,
-        tab_name="Dakota Videos",
-        tab_url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/dakota-videos",
+        tab_key="dakota_videos",
     )
