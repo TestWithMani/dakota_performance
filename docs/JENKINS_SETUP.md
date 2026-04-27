@@ -49,6 +49,7 @@ This pipeline uses checkbox-driven test selection:
 
 - `TEST_SELECTION_MODE`
   - `ALL_TABS` -> run all mapped test files
+  - `SMOKE` -> run predefined critical tabs only
   - `CHECKBOX_SELECTION` -> run only checked `TAB_*` parameters
 - `TAB_*` checkboxes
   - Each checkbox maps to one test file in `tests/` (for example `TAB_MARKETPLACE_HOME`).
@@ -66,15 +67,13 @@ This pipeline uses checkbox-driven test selection:
   - Recipient controls for email notifications.
 - `SF_CREDENTIALS_ID`
   - Jenkins credentials ID for Salesforce username/password.
-- `ALLURE_TOOL_NAME`
-  - Optional Jenkins Allure commandline tool name.
 - `RESET_JOB_BUILD_HISTORY`
   - Safe cleanup mode in current implementation (workspace artifacts only).
 
 ## 5) Suggested Job Strategy
 
 - **PR validation job**:
-  - `TEST_SELECTION_MODE=CHECKBOX_SELECTION` and only a small smoke subset of `TAB_*` checkboxes.
+  - `TEST_SELECTION_MODE=SMOKE`
 - **Scheduled full regression**:
   - `TEST_SELECTION_MODE=ALL_TABS`
   - `ENABLE_INFRA_RETRY=true`, `INFRA_RETRY_COUNT=1`
