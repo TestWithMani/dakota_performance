@@ -12,7 +12,57 @@ pipeline {
         choice(
             name: 'TEST_SELECTION_MODE',
             choices: ['ALL_TABS', 'CHECKBOX_SELECTION'],
-            description: 'ALL_TABS runs the full suite. CHECKBOX_SELECTION runs only checked testcases below.'
+            description: 'Execution mode: ALL_TABS always runs full suite. CHECKBOX_SELECTION runs only selected TAB_* checkboxes.'
+        )
+        booleanParam(
+            name: 'FRESH_REPORT_OUTPUT',
+            defaultValue: false,
+            description: 'Clear old report artifacts before this run and generate fresh Excel + Allure output.'
+        )
+        booleanParam(
+            name: 'RESET_JOB_BUILD_HISTORY',
+            defaultValue: false,
+            description: 'Safe mode: clean workspace report artifacts only (does not delete Jenkins build records or reset build numbers).'
+        )
+        string(
+            name: 'ADDITIONAL_EMAILS',
+            defaultValue: '',
+            description: 'Additional email recipients (comma-separated list).'
+        )
+        string(
+            name: 'DEFAULT_EMAIL',
+            defaultValue: 'usman.arshad@rolustech.com',
+            description: 'Primary recipient for pipeline report emails.'
+        )
+        string(
+            name: 'SF_CREDENTIALS_ID',
+            defaultValue: 'sf-marketplace-creds',
+            description: 'Jenkins credentials ID for Salesforce login automation.'
+        )
+        booleanParam(
+            name: 'ENABLE_INFRA_RETRY',
+            defaultValue: true,
+            description: 'Automatically retry only flaky/infrastructure Selenium failures.'
+        )
+        string(
+            name: 'INFRA_RETRY_COUNT',
+            defaultValue: '1',
+            description: 'Maximum retries for allowed infra failures (0 disables retries).'
+        )
+        booleanParam(
+            name: 'RUN_ALLURE',
+            defaultValue: true,
+            description: 'Generate and publish Allure report in Jenkins.'
+        )
+        string(
+            name: 'ALLURE_TOOL_NAME',
+            defaultValue: '',
+            description: 'Optional Jenkins Allure tool name; leave blank to use plugin default.'
+        )
+        booleanParam(
+            name: 'SEND_EMAIL',
+            defaultValue: true,
+            description: 'Send HTML email summary after pipeline completion.'
         )
         booleanParam(name: 'TAB_13F_FILINGS_INVESTMENTS_SEARCH', defaultValue: false, description: 'Run 13F Filings Investments Search tab test.')
         booleanParam(name: 'TAB_13F_FILINGS', defaultValue: false, description: 'Run 13F Filings tab test.')
@@ -62,56 +112,6 @@ pipeline {
         booleanParam(name: 'TAB_SEARCHES_DASHBOARD', defaultValue: false, description: 'Run Searches Dashboard tab test.')
         booleanParam(name: 'TAB_UNIVERSITY_ALUMNI', defaultValue: false, description: 'Run University Alumni tab test.')
         booleanParam(name: 'TAB_WEALTH_CHANNEL_METRO_AREAS', defaultValue: false, description: 'Run Wealth Channel Metro Areas tab test.')
-        booleanParam(
-            name: 'RUN_ALLURE',
-            defaultValue: true,
-            description: 'Enable Allure report generation and publishing in Jenkins.'
-        )
-        booleanParam(
-            name: 'ENABLE_INFRA_RETRY',
-            defaultValue: true,
-            description: 'Retry only flaky/infrastructure Selenium failures automatically.'
-        )
-        string(
-            name: 'INFRA_RETRY_COUNT',
-            defaultValue: '1',
-            description: 'Number of retries for allowed infra failures (0 = no retry).'
-        )
-        booleanParam(
-            name: 'SEND_EMAIL',
-            defaultValue: true,
-            description: 'Send HTML email summary after pipeline execution.'
-        )
-        booleanParam(
-            name: 'FRESH_REPORT_OUTPUT',
-            defaultValue: false,
-            description: 'Clear old reports and generate fresh Excel + Allure output.'
-        )
-        booleanParam(
-            name: 'RESET_JOB_BUILD_HISTORY',
-            defaultValue: false,
-            description: 'Delete previous completed builds for this job and reset next build number to 1.'
-        )
-        string(
-            name: 'ADDITIONAL_EMAILS',
-            defaultValue: '',
-            description: 'Extra email recipients (comma-separated list).'
-        )
-        string(
-            name: 'DEFAULT_EMAIL',
-            defaultValue: 'usman.arshad@rolustech.com',
-            description: 'Primary recipient for pipeline execution reports.'
-        )
-        string(
-            name: 'SF_CREDENTIALS_ID',
-            defaultValue: 'sf-marketplace-creds',
-            description: 'Jenkins credential ID used for Salesforce login automation.'
-        )
-        string(
-            name: 'ALLURE_TOOL_NAME',
-            defaultValue: '',
-            description: 'Optional Jenkins Allure tool name. Leave blank to use plugin default.'
-        )
     }
 
     environment {
@@ -227,6 +227,10 @@ pipeline {
         stage('Static Validation') {
             steps {
                 script {
+                    validateRuntimeParameters(
+                        params.TEST_SELECTION_MODE as String,
+                        params.INFRA_RETRY_COUNT as String
+                    )
                     def selectedTestFiles = resolveSelectedTestFiles(
                         params.TEST_SELECTION_MODE as String,
                         params
@@ -399,22 +403,33 @@ def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
         .unique()
         .sort()
 
-    // Safety override: if user selected checkboxes but forgot to switch mode, honor checkboxes.
-    if (!resolved.isEmpty()) {
-        if (mode == 'ALL_TABS') {
-            echo "Checkboxes detected (${resolved.size()}) while TEST_SELECTION_MODE=ALL_TABS; running selected checkboxes only."
+    if (mode == 'ALL_TABS') {
+        if (!resolved.isEmpty()) {
+            echo "Checkboxes detected (${resolved.size()}) but TEST_SELECTION_MODE=ALL_TABS; ignoring checkboxes and running full suite."
         }
-        return resolved
+        return allFiles
     }
 
-    if (mode == 'ALL_TABS') {
-        return allFiles
+    if (mode != 'CHECKBOX_SELECTION') {
+        error("Unsupported TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, CHECKBOX_SELECTION.")
     }
 
     if (resolved.isEmpty()) {
         error('No tab checkbox selected. Either select one or more tab checkboxes, or set TEST_SELECTION_MODE=ALL_TABS.')
     }
     return resolved
+}
+
+def validateRuntimeParameters(String selectionMode, String infraRetryCount) {
+    def mode = (selectionMode ?: '').trim().toUpperCase()
+    if (!(mode in ['ALL_TABS', 'CHECKBOX_SELECTION'])) {
+        error("Invalid TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, CHECKBOX_SELECTION.")
+    }
+
+    def rawRetry = (infraRetryCount ?: '').trim()
+    if (!(rawRetry ==~ /^\d+$/)) {
+        error("INFRA_RETRY_COUNT must be a non-negative integer, but got '${infraRetryCount}'.")
+    }
 }
 
 def getAvailableTestCaseFiles() {
