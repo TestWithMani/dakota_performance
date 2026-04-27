@@ -54,11 +54,6 @@ pipeline {
             defaultValue: true,
             description: 'Generate and publish Allure report in Jenkins.'
         )
-        string(
-            name: 'ALLURE_TOOL_NAME',
-            defaultValue: '',
-            description: 'Optional Jenkins Allure tool name; leave blank to use plugin default.'
-        )
         booleanParam(
             name: 'SEND_EMAIL',
             defaultValue: true,
@@ -300,10 +295,6 @@ pipeline {
                             results: [[path: env.ALLURE_DIR]],
                             reportName: 'Allure Report'
                         ]
-                        def configuredAllureTool = (params.ALLURE_TOOL_NAME ?: '').trim()
-                        if (configuredAllureTool) {
-                            allureArgs.commandline = configuredAllureTool
-                        }
                         allure(allureArgs)
                     } else if (params.RUN_ALLURE) {
                         echo "Skipping Allure publish: ${env.ALLURE_DIR} directory not found."
