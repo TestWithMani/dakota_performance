@@ -192,19 +192,19 @@ TAB_REGISTRY: Mapping[str, TabDefinition] = {
         url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/recent-transactions",
     ),
     "reports_everything": TabDefinition(
-        display_name="Reports Everything",
+        display_name="Reports All",
         url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/report/Report/Recent/Report/?queryScope=everything",
         end_element_xpath=config.REPORTS_END_ELEMENT_XPATH,
         end_condition="clickable",
     ),
     "reports_mru": TabDefinition(
-        display_name="Reports MRU",
+        display_name="Reports Recent",
         url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/report/Report/Recent/Report/?queryScope=mru",
         end_element_xpath=config.REPORTS_END_ELEMENT_XPATH,
         end_condition="clickable",
     ),
     "reports_user_folders": TabDefinition(
-        display_name="Reports User Folders",
+        display_name="Reports All Folders",
         url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/report/Report/Recent/Report/?queryScope=userFolders",
         end_element_xpath=config.REPORTS_END_ELEMENT_XPATH,
         end_condition="clickable",
