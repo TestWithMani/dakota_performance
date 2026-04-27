@@ -695,22 +695,26 @@ def getFinalOutcomesFromPytestJson() {
     }
 
     try {
-        // Use Jenkins-native JSON reader to avoid Script Security approvals
-        // required by JsonSlurperClassic in sandboxed pipelines.
-        def parsed = readJSON file: reportPath
-        def tests = parsed?.tests instanceof List ? parsed.tests : []
+        // Parse JSON report using regex so it works without Pipeline Utility Steps
+        // (readJSON) and without Script Approval exceptions from JsonSlurper.
+        def jsonText = readFile(reportPath)
         def finalOutcomeByNodeId = [:]
 
-        tests.each { testEntry ->
-            def nodeId = ((testEntry?.nodeid ?: testEntry?.node_id ?: testEntry?.name) ?: '').toString().trim()
-            def outcome = (testEntry?.outcome ?: '').toString().trim().toLowerCase()
+        // Capture nodeid/outcome pairs from each test object.
+        def testMatcher = (jsonText =~ /"nodeid"\s*:\s*"((?:\\.|[^"\\])*)".*?"outcome"\s*:\s*"((?:\\.|[^"\\])*)"/)
+        while (testMatcher.find()) {
+            def nodeId = (testMatcher.group(1) ?: '')
+                .replaceAll(/\\\//, '/')
+                .replaceAll(/\\"/, '"')
+                .trim()
+            def outcome = (testMatcher.group(2) ?: '').trim().toLowerCase()
             if (!nodeId || !outcome) {
-                return
+                continue
             }
 
             // Retry attempts are intermediate; only final terminal outcome should count.
             if (outcome in ['rerun', 're-run']) {
-                return
+                continue
             }
             if (outcome == 'error') {
                 outcome = 'failed'
@@ -719,7 +723,7 @@ def getFinalOutcomesFromPytestJson() {
                 outcome = 'skipped'
             }
             if (!(outcome in ['passed', 'failed', 'skipped'])) {
-                return
+                continue
             }
 
             // Keep last terminal state for each testcase id (important for retry flows).
@@ -742,11 +746,14 @@ def getFinalOutcomesFromPytestJson() {
             ]
         }
 
-        // Fallback to JSON summary if tests array is not available.
-        def summary = parsed?.summary ?: [:]
-        def passed = (summary?.passed ?: 0) as int
-        def failed = ((summary?.failed ?: 0) as int) + ((summary?.error ?: 0) as int)
-        def skipped = ((summary?.skipped ?: 0) as int) + ((summary?.xfailed ?: 0) as int) + ((summary?.xpassed ?: 0) as int)
+        // Fallback to summary counters if per-test entries are unavailable.
+        def parseSummaryInt = { String key ->
+            def m = (jsonText =~ /"summary"\s*:\s*\{(?s).*?"${java.util.regex.Pattern.quote(key)}"\s*:\s*(\d+)/)
+            return m.find() ? (m.group(1) ?: '0') as int : 0
+        }
+        def passed = parseSummaryInt('passed')
+        def failed = parseSummaryInt('failed') + parseSummaryInt('error')
+        def skipped = parseSummaryInt('skipped') + parseSummaryInt('xfailed') + parseSummaryInt('xpassed')
         def total = passed + failed + skipped
         if (total > 0) {
             return [hasData: true, stats: [total: total, passed: passed, failed: failed, skipped: skipped], failedTests: []]
