@@ -576,24 +576,14 @@ def runPytest(String args) {
 
 def getTestStatistics() {
     def stats = [total: 0, passed: 0, failed: 0, skipped: 0]
-    def reportPath = env.PYTEST_JSON ?: 'test-results/report.json'
     def junitPath = env.PYTEST_JUNIT ?: 'test-results/pytest.xml'
+    def jsonSnapshot = getFinalOutcomesFromPytestJson()
 
-    if (fileExists(reportPath)) {
-        try {
-            def jsonText = readFile(reportPath)
-            stats.passed = extractIntFromJson(jsonText, 'passed')
-            stats.failed = extractIntFromJson(jsonText, 'failed')
-            stats.skipped = extractIntFromJson(jsonText, 'skipped')
-            stats.total = stats.passed + stats.failed + stats.skipped
-        } catch (Exception ex) {
-            echo "Could not parse pytest JSON report: ${ex.message}"
-        }
-    } else {
-        echo "Pytest JSON report not found at ${reportPath}; trying JUnit fallback."
+    if (jsonSnapshot.hasData as boolean) {
+        return jsonSnapshot.stats as Map
     }
 
-    if (stats.total == 0 && fileExists(junitPath)) {
+    if (fileExists(junitPath)) {
         try {
             def xmlText = readFile(junitPath)
             def tests = extractIntFromXmlAttribute(xmlText, 'tests')
@@ -610,12 +600,19 @@ def getTestStatistics() {
         } catch (Exception ex) {
             echo "Could not parse JUnit XML fallback: ${ex.message}"
         }
+    } else {
+        echo "JUnit XML report not found at ${junitPath}; no fallback stats available."
     }
 
     return stats
 }
 
 def getFailedTestNames() {
+    def jsonSnapshot = getFinalOutcomesFromPytestJson()
+    if (jsonSnapshot.hasData as boolean) {
+        return (jsonSnapshot.failedTests ?: []) as List
+    }
+
     def failures = []
     def junitPath = env.PYTEST_JUNIT ?: 'test-results/pytest.xml'
     if (!fileExists(junitPath)) {
@@ -650,6 +647,95 @@ def getFailedTestNames() {
     }
 
     return failures.unique()
+}
+
+def getFinalOutcomesFromPytestJson() {
+    def reportPath = env.PYTEST_JSON ?: 'test-results/report.json'
+    def emptyStats = [total: 0, passed: 0, failed: 0, skipped: 0]
+    def result = [hasData: false, stats: emptyStats, failedTests: []]
+
+    if (!fileExists(reportPath)) {
+        echo "Pytest JSON report not found at ${reportPath}; trying JUnit fallback."
+        return result
+    }
+
+    try {
+        def jsonText = readFile(reportPath)
+        def parsed = new groovy.json.JsonSlurperClassic().parseText(jsonText)
+        def tests = parsed?.tests instanceof List ? parsed.tests : []
+        def finalOutcomeByNodeId = [:]
+
+        tests.each { testEntry ->
+            def nodeId = ((testEntry?.nodeid ?: testEntry?.node_id ?: testEntry?.name) ?: '').toString().trim()
+            def outcome = (testEntry?.outcome ?: '').toString().trim().toLowerCase()
+            if (!nodeId || !outcome) {
+                return
+            }
+
+            // Retry attempts are intermediate; only final terminal outcome should count.
+            if (outcome in ['rerun', 're-run']) {
+                return
+            }
+            if (outcome == 'error') {
+                outcome = 'failed'
+            }
+            if (outcome in ['xfailed', 'xpassed']) {
+                outcome = 'skipped'
+            }
+            if (!(outcome in ['passed', 'failed', 'skipped'])) {
+                return
+            }
+
+            // Keep last terminal state for each testcase id (important for retry flows).
+            finalOutcomeByNodeId[nodeId] = outcome
+        }
+
+        if (!finalOutcomeByNodeId.isEmpty()) {
+            def passed = finalOutcomeByNodeId.findAll { _, status -> status == 'passed' }.size()
+            def failed = finalOutcomeByNodeId.findAll { _, status -> status == 'failed' }.size()
+            def skipped = finalOutcomeByNodeId.findAll { _, status -> status == 'skipped' }.size()
+            def failedTests = finalOutcomeByNodeId
+                .findAll { _, status -> status == 'failed' }
+                .collect { nodeId, _ -> extractDisplayNameFromNodeId(nodeId as String) }
+                .findAll { it }
+                .unique()
+            return [
+                hasData: true,
+                stats: [total: passed + failed + skipped, passed: passed, failed: failed, skipped: skipped],
+                failedTests: failedTests
+            ]
+        }
+
+        // Fallback to JSON summary if tests array is not available.
+        def summary = parsed?.summary ?: [:]
+        def passed = (summary?.passed ?: 0) as int
+        def failed = ((summary?.failed ?: 0) as int) + ((summary?.error ?: 0) as int)
+        def skipped = ((summary?.skipped ?: 0) as int) + ((summary?.xfailed ?: 0) as int) + ((summary?.xpassed ?: 0) as int)
+        def total = passed + failed + skipped
+        if (total > 0) {
+            return [hasData: true, stats: [total: total, passed: passed, failed: failed, skipped: skipped], failedTests: []]
+        }
+    } catch (Exception ex) {
+        echo "Could not parse pytest JSON report: ${ex.message}"
+    }
+
+    return result
+}
+
+def extractDisplayNameFromNodeId(String nodeId) {
+    def value = (nodeId ?: '').trim()
+    if (!value) {
+        return value
+    }
+
+    if (value.contains('::')) {
+        value = value.tokenize('::').last()
+    } else if (value.contains('/')) {
+        value = value.tokenize('/').last()
+    } else if (value.contains('\\')) {
+        value = value.tokenize('\\').last()
+    }
+    return value.replaceFirst(/\[.*\]$/, '')
 }
 
 def extractIntFromJson(String jsonText, String key) {
