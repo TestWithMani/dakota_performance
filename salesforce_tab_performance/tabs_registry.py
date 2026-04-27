@@ -53,12 +53,6 @@ TAB_REGISTRY: Mapping[str, TabDefinition] = {
         end_element_xpath=config.CUSTOM_DASHBOARD_END_ELEMENT_XPATH,
         end_condition="clickable",
     ),
-    "custom_portfolio_dashboard_v2": TabDefinition(
-        display_name="Custom Portfolio Dashboard",
-        url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/custom-portfolio-dashboard",
-        end_element_xpath=config.CUSTOM_DASHBOARD_END_ELEMENT_XPATH,
-        end_condition="clickable",
-    ),
     "dakota_city_guides": TabDefinition(
         display_name="Dakota City Guides",
         url="https://dakotanetworks.my.site.com/dakotaMarketplace/s/dakota-city-guides",

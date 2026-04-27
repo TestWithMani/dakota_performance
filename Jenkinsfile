@@ -69,7 +69,6 @@ pipeline {
         booleanParam(name: 'TAB_CONSULTANT_REVIEWS_DASHBOARD', defaultValue: false, description: 'Run Consultant Reviews Dashboard tab test.')
         booleanParam(name: 'TAB_CONTACT', defaultValue: false, description: 'Run Contact tab test.')
         booleanParam(name: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD', defaultValue: false, description: 'Run Custom Portfolio Dashboard tab test.')
-        booleanParam(name: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD_V2', defaultValue: false, description: 'Run Custom Portfolio Dashboard V2 tab test.')
         booleanParam(name: 'TAB_DAKOTA_CITY_GUIDES', defaultValue: false, description: 'Run Dakota City Guides tab test.')
         booleanParam(name: 'TAB_DAKOTA_JOE_REPORTS', defaultValue: false, description: 'Run Dakota Joe Reports tab test.')
         booleanParam(name: 'TAB_DAKOTA_VIDEOS', defaultValue: false, description: 'Run Dakota Videos tab test.')
@@ -455,7 +454,6 @@ def getAvailableTestCaseFiles() {
         'tests/test_consultant_reviews_dashboard_tab_performance.py',
         'tests/test_contact_tab_performance.py',
         'tests/test_custom_portfolio_dashboard_tab_performance.py',
-        'tests/test_custom_portfolio_dashboard_v2_tab_performance.py',
         'tests/test_dakota_city_guides_tab_performance.py',
         'tests/test_dakota_joe_reports_tab_performance.py',
         'tests/test_dakota_videos_tab_performance.py',
@@ -508,7 +506,6 @@ def getTestCaseCheckboxMap() {
         [param: 'TAB_CONSULTANT_REVIEWS_DASHBOARD', file: 'tests/test_consultant_reviews_dashboard_tab_performance.py'],
         [param: 'TAB_CONTACT', file: 'tests/test_contact_tab_performance.py'],
         [param: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD', file: 'tests/test_custom_portfolio_dashboard_tab_performance.py'],
-        [param: 'TAB_CUSTOM_PORTFOLIO_DASHBOARD_V2', file: 'tests/test_custom_portfolio_dashboard_v2_tab_performance.py'],
         [param: 'TAB_DAKOTA_CITY_GUIDES', file: 'tests/test_dakota_city_guides_tab_performance.py'],
         [param: 'TAB_DAKOTA_JOE_REPORTS', file: 'tests/test_dakota_joe_reports_tab_performance.py'],
         [param: 'TAB_DAKOTA_VIDEOS', file: 'tests/test_dakota_videos_tab_performance.py'],
