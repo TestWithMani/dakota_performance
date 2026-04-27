@@ -49,6 +49,16 @@ pipeline {
             defaultValue: '1',
             description: 'Maximum retries for allowed infra failures (0 disables retries).'
         )
+        choice(
+            name: 'BROWSER',
+            choices: ['chrome', 'edge', 'firefox'],
+            description: 'Browser used for Selenium test execution.'
+        )
+        string(
+            name: 'PARALLEL_WORKERS',
+            defaultValue: '1',
+            description: "Pytest xdist workers: '1' disables parallel, use integer >1 or 'auto'."
+        )
         booleanParam(
             name: 'RUN_ALLURE',
             defaultValue: true,
@@ -223,7 +233,9 @@ pipeline {
                 script {
                     validateRuntimeParameters(
                         params.TEST_SELECTION_MODE as String,
-                        params.INFRA_RETRY_COUNT as String
+                        params.INFRA_RETRY_COUNT as String,
+                        params.BROWSER as String,
+                        params.PARALLEL_WORKERS as String
                     )
                     def selectedTestFiles = resolveSelectedTestFiles(
                         params.TEST_SELECTION_MODE as String,
@@ -247,7 +259,9 @@ pipeline {
                         ),
                         params.RUN_ALLURE as boolean,
                         params.ENABLE_INFRA_RETRY as boolean,
-                        params.INFRA_RETRY_COUNT as String
+                        params.INFRA_RETRY_COUNT as String,
+                        params.BROWSER as String,
+                        params.PARALLEL_WORKERS as String
                     )
                     echo "Pytest command: pytest ${runCmd}"
 
@@ -325,7 +339,14 @@ pipeline {
     }
 }
 
-def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enableInfraRetry, String infraRetryCount) {
+def buildPytestCommand(
+    List selectedTestFiles,
+    boolean runAllure,
+    boolean enableInfraRetry,
+    String infraRetryCount,
+    String browser,
+    String parallelWorkers
+) {
     def allureArg = runAllure ? "--alluredir=${env.ALLURE_DIR}" : ''
     def parts = []
 
@@ -341,6 +362,13 @@ def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enable
     parts << '--color=no'
     parts << '-o'
     parts << 'console_output_style=progress'
+    parts << "--browser=${(browser ?: 'chrome').trim().toLowerCase()}"
+
+    def workers = (parallelWorkers ?: '1').trim().toLowerCase()
+    if (workers != '1') {
+        parts << '-n'
+        parts << workers
+    }
 
     if (allureArg) {
         parts << allureArg
@@ -418,7 +446,7 @@ def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
     return resolved
 }
 
-def validateRuntimeParameters(String selectionMode, String infraRetryCount) {
+def validateRuntimeParameters(String selectionMode, String infraRetryCount, String browser, String parallelWorkers) {
     def mode = (selectionMode ?: '').trim().toUpperCase()
     if (!(mode in ['ALL_TABS', 'SMOKE', 'CHECKBOX_SELECTION'])) {
         error("Invalid TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, SMOKE, CHECKBOX_SELECTION.")
@@ -427,6 +455,22 @@ def validateRuntimeParameters(String selectionMode, String infraRetryCount) {
     def rawRetry = (infraRetryCount ?: '').trim()
     if (!(rawRetry ==~ /^\d+$/)) {
         error("INFRA_RETRY_COUNT must be a non-negative integer, but got '${infraRetryCount}'.")
+    }
+
+    def browserChoice = (browser ?: '').trim().toLowerCase()
+    if (!(browserChoice in ['chrome', 'edge', 'firefox'])) {
+        error("BROWSER must be one of: chrome, edge, firefox. Got '${browser}'.")
+    }
+
+    def workers = (parallelWorkers ?: '').trim().toLowerCase()
+    if (workers == 'auto') {
+        return
+    }
+    if (!(workers ==~ /^\d+$/)) {
+        error("PARALLEL_WORKERS must be a non-negative integer or 'auto', but got '${parallelWorkers}'.")
+    }
+    if ((workers as int) < 1) {
+        error("PARALLEL_WORKERS must be >= 1, but got '${parallelWorkers}'.")
     }
 }
 

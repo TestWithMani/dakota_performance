@@ -8,8 +8,12 @@ from pathlib import Path
 import allure
 import pytest
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.edge.service import Service as EdgeService
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.service import Service as FirefoxService
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -34,18 +38,40 @@ def preload_credentials() -> None:
     bootstrap_credentials()
 
 
-@pytest.fixture(scope="function")
-def driver():
-    """Provide a clean Chrome WebDriver instance for each test."""
-    chrome_options = Options()
-    chrome_options.add_argument("--start-maximized")
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-infobars")
-    chrome_options.add_argument("--disable-gpu")
+def pytest_addoption(parser):
+    """Register runtime browser selection from CLI/Jenkins."""
+    parser.addoption(
+        "--browser",
+        action="store",
+        default="chrome",
+        choices=["chrome", "edge", "firefox"],
+        help="Browser for Selenium tests: chrome, edge, or firefox.",
+    )
 
-    # Selenium Manager resolves ChromeDriver automatically for Selenium 4.6+.
-    service = Service()
-    web_driver = webdriver.Chrome(service=service, options=chrome_options)
+
+@pytest.fixture(scope="function")
+def driver(request):
+    """Provide a clean WebDriver instance for each test."""
+    browser = (request.config.getoption("--browser") or "chrome").strip().lower()
+
+    if browser == "chrome":
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument("--disable-notifications")
+        chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_argument("--disable-gpu")
+        web_driver = webdriver.Chrome(service=ChromeService(), options=chrome_options)
+    elif browser == "edge":
+        edge_options = EdgeOptions()
+        edge_options.add_argument("--start-maximized")
+        edge_options.add_argument("--disable-notifications")
+        edge_options.add_argument("--disable-gpu")
+        web_driver = webdriver.Edge(service=EdgeService(), options=edge_options)
+    else:
+        firefox_options = FirefoxOptions()
+        web_driver = webdriver.Firefox(service=FirefoxService(), options=firefox_options)
+        web_driver.maximize_window()
+
     web_driver.implicitly_wait(0)
     yield web_driver
     try:
