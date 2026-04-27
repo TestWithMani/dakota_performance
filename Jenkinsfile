@@ -654,8 +654,9 @@ def getFinalOutcomesFromPytestJson() {
     }
 
     try {
-        def jsonText = readFile(reportPath)
-        def parsed = new groovy.json.JsonSlurperClassic().parseText(jsonText)
+        // Use Jenkins-native JSON reader to avoid Script Security approvals
+        // required by JsonSlurperClassic in sandboxed pipelines.
+        def parsed = readJSON file: reportPath
         def tests = parsed?.tests instanceof List ? parsed.tests : []
         def finalOutcomeByNodeId = [:]
 
