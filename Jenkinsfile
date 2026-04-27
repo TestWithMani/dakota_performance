@@ -31,7 +31,7 @@ pipeline {
         )
         string(
             name: 'DEFAULT_EMAIL',
-            defaultValue: 'usman.arshad@rolustech.com',
+            defaultValue: 'omer.shafiq@rolustech.net',
             description: 'Primary recipient for pipeline report emails.'
         )
         string(
