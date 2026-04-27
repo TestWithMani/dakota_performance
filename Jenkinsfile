@@ -11,8 +11,8 @@ pipeline {
     parameters {
         choice(
             name: 'TEST_SELECTION_MODE',
-            choices: ['ALL_TABS', 'CHECKBOX_SELECTION'],
-            description: 'Execution mode: ALL_TABS always runs full suite. CHECKBOX_SELECTION runs only selected TAB_* checkboxes.'
+            choices: ['ALL_TABS', 'SMOKE', 'CHECKBOX_SELECTION'],
+            description: 'Execution mode: ALL_TABS runs full suite, SMOKE runs predefined critical tabs, CHECKBOX_SELECTION runs selected TAB_* checkboxes.'
         )
         booleanParam(
             name: 'FRESH_REPORT_OUTPUT',
@@ -395,6 +395,7 @@ def buildPytestCommand(List selectedTestFiles, boolean runAllure, boolean enable
 
 def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
     def allFiles = getAvailableTestCaseFiles()
+    def smokeFiles = getSmokeTestCaseFiles()
     def mode = (selectionMode ?: 'ALL_TABS').trim().toUpperCase()
     def checkboxMap = getTestCaseCheckboxMap()
     def resolved = checkboxMap
@@ -410,8 +411,15 @@ def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
         return allFiles
     }
 
+    if (mode == 'SMOKE') {
+        if (!resolved.isEmpty()) {
+            echo "Checkboxes detected (${resolved.size()}) but TEST_SELECTION_MODE=SMOKE; ignoring checkboxes and running predefined SMOKE suite."
+        }
+        return smokeFiles
+    }
+
     if (mode != 'CHECKBOX_SELECTION') {
-        error("Unsupported TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, CHECKBOX_SELECTION.")
+        error("Unsupported TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, SMOKE, CHECKBOX_SELECTION.")
     }
 
     if (resolved.isEmpty()) {
@@ -422,14 +430,26 @@ def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
 
 def validateRuntimeParameters(String selectionMode, String infraRetryCount) {
     def mode = (selectionMode ?: '').trim().toUpperCase()
-    if (!(mode in ['ALL_TABS', 'CHECKBOX_SELECTION'])) {
-        error("Invalid TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, CHECKBOX_SELECTION.")
+    if (!(mode in ['ALL_TABS', 'SMOKE', 'CHECKBOX_SELECTION'])) {
+        error("Invalid TEST_SELECTION_MODE='${selectionMode}'. Allowed values: ALL_TABS, SMOKE, CHECKBOX_SELECTION.")
     }
 
     def rawRetry = (infraRetryCount ?: '').trim()
     if (!(rawRetry ==~ /^\d+$/)) {
         error("INFRA_RETRY_COUNT must be a non-negative integer, but got '${infraRetryCount}'.")
     }
+}
+
+def getSmokeTestCaseFiles() {
+    return [
+        'tests/test_accounts_tab_performance.py',
+        'tests/test_contact_tab_performance.py',
+        'tests/test_marketplace_home_tab_performance.py',
+        'tests/test_public_company_search_tab_performance.py',
+        'tests/test_13f_filings_tab_performance.py',
+        'tests/test_portfolio_companies_tab_performance.py',
+        'tests/test_all_documents_tab_performance.py'
+    ]
 }
 
 def getAvailableTestCaseFiles() {
