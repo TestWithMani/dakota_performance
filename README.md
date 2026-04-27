@@ -107,7 +107,7 @@ See `CONTRIBUTING.md` for branch, testing, and PR guidance.
 This repository includes a root `Jenkinsfile` with a professional, parameterized pipeline.
 
 - Local Jenkins setup guide: `docs/JENKINS_SETUP.md`
-- Supports: `smoke`, `marker`, and `full` scopes
+- Supports modes: `ALL_TABS`, `SMOKE`, and `CHECKBOX_SELECTION`
 - Archives JUnit + Allure + Excel artifacts
 
 ## License

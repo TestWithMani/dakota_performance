@@ -496,12 +496,6 @@ def getAvailableTestCaseFiles() {
     ]
 }
 
-def getAvailableTestCaseIds() {
-    return getAvailableTestCaseFiles()
-        .collect { it.tokenize('/').last().replaceFirst(/\.py$/, '') }
-        .sort()
-}
-
 def getTestCaseCheckboxMap() {
     return [
         [param: 'TAB_13F_FILINGS_INVESTMENTS_SEARCH', file: 'tests/test_13f_filings_investments_search_tab_performance.py'],
@@ -736,17 +730,6 @@ def extractDisplayNameFromNodeId(String nodeId) {
         value = value.tokenize('\\').last()
     }
     return value.replaceFirst(/\[.*\]$/, '')
-}
-
-def extractIntFromJson(String jsonText, String key) {
-    if (!jsonText?.trim()) {
-        return 0
-    }
-    def matcher = (jsonText =~ /"${java.util.regex.Pattern.quote(key)}"\s*:\s*(\d+)/)
-    if (matcher.find()) {
-        return (matcher.group(1) ?: '0') as int
-    }
-    return 0
 }
 
 def extractIntFromXmlAttribute(String xmlText, String attr) {

@@ -19,11 +19,12 @@ from salesforce_tab_performance.credentials_utils import bootstrap_credentials
 
 SMOKE_TEST_FILES = {
     "test_accounts_tab_performance.py",
+    "test_all_documents_tab_performance.py",
+    "test_13f_filings_tab_performance.py",
     "test_contact_tab_performance.py",
-    "test_investment_allocator_tab_performance.py",
-    "test_investment_firm_tab_performance.py",
     "test_marketplace_home_tab_performance.py",
-    "test_my_account_tab_performance.py",
+    "test_portfolio_companies_tab_performance.py",
+    "test_public_company_search_tab_performance.py",
 }
 
 
