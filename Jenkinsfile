@@ -8,6 +8,10 @@ pipeline {
         timeout(time: 200, unit: 'MINUTES')
     }
 
+    triggers {
+        cron('0 10 * * 4')
+    }
+
     parameters {
         choice(
             name: 'TEST_SELECTION_MODE',
@@ -140,6 +144,10 @@ pipeline {
                     }
                     def shortCommit = env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'N/A'
                     echo "Branch: ${env.BRANCH_NAME ?: 'main'} | Commit: ${shortCommit}"
+                    def effectiveCfg = getEffectiveRunConfig()
+                    if (effectiveCfg.scheduledBuild) {
+                        echo 'Scheduled run detected: applying Thursday 10:00 AM preset parameters.'
+                    }
                 }
             }
         }
@@ -195,7 +203,8 @@ pipeline {
         stage('Prepare Report Directories') {
             steps {
                 script {
-                    if (params.FRESH_REPORT_OUTPUT as boolean) {
+                    def effectiveCfg = getEffectiveRunConfig()
+                    if (effectiveCfg.freshReportOutput) {
                         echo 'Fresh report mode enabled: clearing previous Excel and Allure history artifacts.'
                         runShell(
                             '''
@@ -231,17 +240,18 @@ pipeline {
         stage('Static Validation') {
             steps {
                 script {
+                    def effectiveCfg = getEffectiveRunConfig()
                     validateRuntimeParameters(
-                        params.TEST_SELECTION_MODE as String,
-                        params.INFRA_RETRY_COUNT as String,
-                        params.BROWSER as String,
+                        effectiveCfg.testSelectionMode as String,
+                        effectiveCfg.infraRetryCount as String,
+                        effectiveCfg.browser as String,
                         params.PARALLEL_WORKERS as String
                     )
                     def selectedTestFiles = resolveSelectedTestFiles(
-                        params.TEST_SELECTION_MODE as String,
+                        effectiveCfg.testSelectionMode as String,
                         params
                     )
-                    echo "Selection mode -> ${params.TEST_SELECTION_MODE}"
+                    echo "Selection mode -> ${effectiveCfg.testSelectionMode}"
                     echo "Selected ${selectedTestFiles.size()} test files."
                     runPytest('--version')
                     runPytest("--collect-only -q ${selectedTestFiles.join(' ')}")
@@ -252,15 +262,16 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
+                    def effectiveCfg = getEffectiveRunConfig()
                     def runCmd = buildPytestCommand(
                         resolveSelectedTestFiles(
-                            params.TEST_SELECTION_MODE as String,
+                            effectiveCfg.testSelectionMode as String,
                             params
                         ),
-                        params.RUN_ALLURE as boolean,
-                        params.ENABLE_INFRA_RETRY as boolean,
-                        params.INFRA_RETRY_COUNT as String,
-                        params.BROWSER as String,
+                        effectiveCfg.runAllure as boolean,
+                        effectiveCfg.enableInfraRetry as boolean,
+                        effectiveCfg.infraRetryCount as String,
+                        effectiveCfg.browser as String,
                         params.PARALLEL_WORKERS as String
                     )
                     echo "Pytest command: pytest ${runCmd}"
@@ -282,6 +293,7 @@ pipeline {
         stage('Publish Reports') {
             steps {
                 script {
+                    def effectiveCfg = getEffectiveRunConfig()
                     if (fileExists(env.PYTEST_JUNIT)) {
                         junit testResults: env.PYTEST_JUNIT, allowEmptyResults: true
                     }
@@ -299,7 +311,7 @@ pipeline {
                         echo 'HTML Publisher plugin not installed; skipping publishHTML step.'
                     }
 
-                    if (params.RUN_ALLURE && fileExists(env.ALLURE_DIR)) {
+                    if (effectiveCfg.runAllure && fileExists(env.ALLURE_DIR)) {
                         def allureArgs = [
                             includeProperties: false,
                             jdk: '',
@@ -309,7 +321,7 @@ pipeline {
                             reportName: 'Allure Report'
                         ]
                         allure(allureArgs)
-                    } else if (params.RUN_ALLURE) {
+                    } else if (effectiveCfg.runAllure) {
                         echo "Skipping Allure publish: ${env.ALLURE_DIR} directory not found."
                     }
                 }
@@ -320,6 +332,7 @@ pipeline {
     post {
         always {
             script {
+                def effectiveCfg = getEffectiveRunConfig()
                 logTestSummaryToConsole('Post pipeline summary')
                 if (fileExists('test-results')) {
                     archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
@@ -331,12 +344,45 @@ pipeline {
                 if (excelArtifact) {
                     archiveArtifacts artifacts: excelArtifact, allowEmptyArchive: true
                 }
-                if (params.SEND_EMAIL) {
-                    sendEmailNotification(currentBuild.currentResult ?: 'UNKNOWN')
+                if (effectiveCfg.sendEmail) {
+                    sendEmailNotification(
+                        currentBuild.currentResult ?: 'UNKNOWN',
+                        effectiveCfg.defaultEmail as String,
+                        effectiveCfg.additionalEmails as String
+                    )
                 }
             }
         }
     }
+}
+
+def isScheduledBuild() {
+    try {
+        def causes = currentBuild?.rawBuild?.getCauses() ?: []
+        return causes.any { cause -> cause?.class?.name == 'hudson.triggers.TimerTrigger$TimerTriggerCause' }
+    } catch (Exception ignored) {
+        return false
+    }
+}
+
+def getEffectiveRunConfig() {
+    def scheduled = isScheduledBuild()
+    return [
+        scheduledBuild   : scheduled,
+        testSelectionMode: scheduled ? 'ALL_TABS' : (params.TEST_SELECTION_MODE as String),
+        freshReportOutput: scheduled ? true : (params.FRESH_REPORT_OUTPUT as boolean),
+        additionalEmails : scheduled
+            ? 'muhammadusmanarshad3546@gmail.com, m.usmanarshad.technocares@gmail.com'
+            : (params.ADDITIONAL_EMAILS as String),
+        defaultEmail     : scheduled
+            ? 'muhammadnoumanarshad3546@gmail.com'
+            : (params.DEFAULT_EMAIL as String),
+        enableInfraRetry : scheduled ? true : (params.ENABLE_INFRA_RETRY as boolean),
+        infraRetryCount  : scheduled ? '2' : (params.INFRA_RETRY_COUNT as String),
+        browser          : scheduled ? 'chrome' : (params.BROWSER as String),
+        runAllure        : scheduled ? true : (params.RUN_ALLURE as boolean),
+        sendEmail        : scheduled ? true : (params.SEND_EMAIL as boolean)
+    ]
 }
 
 def buildPytestCommand(
@@ -804,7 +850,7 @@ Skipped: ${stats.skipped}
 """.stripIndent()
 }
 
-def sendEmailNotification(String buildStatus) {
+def sendEmailNotification(String buildStatus, String defaultEmail, String additionalEmails) {
     def stats = getTestStatistics()
     def failedTests = getFailedTestNames()
     def actualStatus = currentBuild.result ?: buildStatus
@@ -821,8 +867,8 @@ def sendEmailNotification(String buildStatus) {
     }
 
     def recipients = collectRecipientEmails(
-        params.DEFAULT_EMAIL as String,
-        params.ADDITIONAL_EMAILS as String
+        defaultEmail,
+        additionalEmails
     )
     if (recipients.isEmpty()) {
         echo 'No email recipients configured; skipping email notification.'
