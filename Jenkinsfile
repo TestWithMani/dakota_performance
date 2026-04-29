@@ -358,8 +358,17 @@ pipeline {
 
 def isScheduledBuild() {
     try {
-        def causes = currentBuild?.rawBuild?.getCauses() ?: []
-        return causes.any { cause -> cause?.class?.name == 'hudson.triggers.TimerTrigger$TimerTriggerCause' }
+        // Prefer sandbox-friendly API (avoids Script Approval on rawBuild.getCauses()).
+        def timerCauses = currentBuild?.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause') ?: []
+        if (!timerCauses.isEmpty()) {
+            return true
+        }
+        // Backward compatibility for older Jenkins versions where typed causes may not resolve.
+        def genericCauses = currentBuild?.getBuildCauses() ?: []
+        return genericCauses.any { cause ->
+            def cls = cause?._class ?: ''
+            return cls.contains('TimerTriggerCause')
+        }
     } catch (Exception ignored) {
         return false
     }
@@ -776,10 +785,28 @@ def getFinalOutcomesFromPytestJson() {
             finalOutcomeByNodeId[nodeId] = outcome
         }
 
+        def parseSummaryInt = { String key ->
+            def m = (jsonText =~ /"summary"\s*:\s*\{(?s).*?"${java.util.regex.Pattern.quote(key)}"\s*:\s*(\d+)/)
+            return m.find() ? (m.group(1) ?: '0') as int : 0
+        }
+        def collected = parseSummaryInt('collected')
+
         if (!finalOutcomeByNodeId.isEmpty()) {
             def passed = finalOutcomeByNodeId.findAll { _, status -> status == 'passed' }.size()
             def failed = finalOutcomeByNodeId.findAll { _, status -> status == 'failed' }.size()
             def skipped = finalOutcomeByNodeId.findAll { _, status -> status == 'skipped' }.size()
+            def total = passed + failed + skipped
+            if (collected > 0 && total > collected) {
+                // Guard against plugin-specific overcounting (e.g., retry artifacts in JSON).
+                def normFailed = Math.min(failed, collected)
+                def remainingAfterFailed = Math.max(collected - normFailed, 0)
+                def normSkipped = Math.min(skipped, remainingAfterFailed)
+                def normPassed = Math.max(collected - normFailed - normSkipped, 0)
+                passed = normPassed
+                failed = normFailed
+                skipped = normSkipped
+                total = collected
+            }
             def failedTests = finalOutcomeByNodeId
                 .findAll { _, status -> status == 'failed' }
                 .collect { nodeId, _ -> extractDisplayNameFromNodeId(nodeId as String) }
@@ -787,20 +814,27 @@ def getFinalOutcomesFromPytestJson() {
                 .unique()
             return [
                 hasData: true,
-                stats: [total: passed + failed + skipped, passed: passed, failed: failed, skipped: skipped],
+                stats: [total: total, passed: passed, failed: failed, skipped: skipped],
                 failedTests: failedTests
             ]
         }
 
         // Fallback to summary counters if per-test entries are unavailable.
-        def parseSummaryInt = { String key ->
-            def m = (jsonText =~ /"summary"\s*:\s*\{(?s).*?"${java.util.regex.Pattern.quote(key)}"\s*:\s*(\d+)/)
-            return m.find() ? (m.group(1) ?: '0') as int : 0
-        }
         def passed = parseSummaryInt('passed')
         def failed = parseSummaryInt('failed') + parseSummaryInt('error')
         def skipped = parseSummaryInt('skipped') + parseSummaryInt('xfailed') + parseSummaryInt('xpassed')
         def total = passed + failed + skipped
+        if (collected > 0 && total > collected) {
+            // Keep email/dashboard counts aligned to collected tests.
+            def normFailed = Math.min(failed, collected)
+            def remainingAfterFailed = Math.max(collected - normFailed, 0)
+            def normSkipped = Math.min(skipped, remainingAfterFailed)
+            def normPassed = Math.max(collected - normFailed - normSkipped, 0)
+            passed = normPassed
+            failed = normFailed
+            skipped = normSkipped
+            total = collected
+        }
         if (total > 0) {
             return [hasData: true, stats: [total: total, passed: passed, failed: failed, skipped: skipped], failedTests: []]
         }
