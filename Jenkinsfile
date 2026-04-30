@@ -9,7 +9,7 @@ pipeline {
     }
 
     triggers {
-        cron('0 10 * * 4')
+        cron('0 10 * * 1')
     }
 
     parameters {
@@ -381,10 +381,10 @@ def getEffectiveRunConfig() {
         testSelectionMode: scheduled ? 'ALL_TABS' : (params.TEST_SELECTION_MODE as String),
         freshReportOutput: scheduled ? true : (params.FRESH_REPORT_OUTPUT as boolean),
         additionalEmails : scheduled
-            ? 'muhammadusmanarshad3546@gmail.com, m.usmanarshad.technocares@gmail.com'
+            ? 'pstanley@dakota.com, draftcrm@rolustech.com'
             : (params.ADDITIONAL_EMAILS as String),
         defaultEmail     : scheduled
-            ? 'muhammadnoumanarshad3546@gmail.com'
+            ? 'omer.shafiq@rolustech.com'
             : (params.DEFAULT_EMAIL as String),
         enableInfraRetry : scheduled ? true : (params.ENABLE_INFRA_RETRY as boolean),
         infraRetryCount  : scheduled ? '2' : (params.INFRA_RETRY_COUNT as String),
