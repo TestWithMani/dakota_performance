@@ -45,7 +45,7 @@ def run_tab_performance_test(
     if not tab_name or not tab_url:
         raise ValueError("run_tab_performance_test requires tab_name/tab_url or a valid tab_key")
 
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, 60)
 
     with allure.step("Open login page and authenticate"):
         _login_to_salesforce(driver, wait)

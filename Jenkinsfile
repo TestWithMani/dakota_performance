@@ -379,7 +379,7 @@ def getEffectiveRunConfig() {
     return [
         scheduledBuild   : scheduled,
         testSelectionMode: scheduled ? 'ALL_TABS' : (params.TEST_SELECTION_MODE as String),
-        freshReportOutput: scheduled ? true : (params.FRESH_REPORT_OUTPUT as boolean),
+        freshReportOutput: scheduled ? false : (params.FRESH_REPORT_OUTPUT as boolean),
         additionalEmails : scheduled
             ? 'pstanley@dakota.com, draftcrm@rolustech.com'
             : (params.ADDITIONAL_EMAILS as String),

@@ -10,7 +10,7 @@ TAB_NAME = "Accounts"
 
 ITERATIONS = 3
 SLA_SECONDS = 15
-STABILIZATION_WAIT = 5
+STABILIZATION_WAIT = 10
 
 # Login field identifiers
 USERNAME_FIELD_ID = "loginPage:loginForm:login-email"
