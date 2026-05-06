@@ -13,3 +13,7 @@ allure-report/
 salesforce_tab_performance/performance_results.xlsx
 salesforce_tab_performance/.env
 .idea/
+
+# Exclude Jenkins-related files from GitHub push
+Jenkinsfile
+docs/JENKINS_SETUP.md
