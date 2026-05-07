@@ -2,113 +2,221 @@
 
 Python + Selenium + pytest framework for measuring Salesforce tab render performance in Dakota Marketplace.
 
-## Highlights
+## What This Project Does
 
-- Measures UI render completion time with configurable start/end locators.
-- Supports per-tab completion rules (`visible` or `clickable`).
-- Runs multiple iterations, calculates average, and evaluates SLA in one final summary result.
-- Exports run data to Excel and captures failure artifacts in Allure.
-- Includes marker-based test grouping for smoke/full/category execution.
+This suite opens Dakota Marketplace tabs in a real browser, measures load/render completion time using configurable page readiness signals, runs multiple timing iterations, and writes a final benchmark outcome (PASS/FAIL) against an SLA threshold.
 
-## Project Layout
+It is designed for:
+- local developer validation,
+- smoke/full/regression execution by markers,
+- Jenkins parameterized runs (single tab, smoke set, or full suite),
+- CI sanity checks for test/marker discovery.
+
+## Key Capabilities
+
+- Configurable start/end locator timing model for each tab flow.
+- Completion strategy per tab (`visible` or `clickable` end condition).
+- Iteration-based timing with averaged final result.
+- Excel export for historical performance records.
+- Allure attachments for failed test diagnostics (URL, page source, screenshot).
+- Browser selection from CLI (`chrome`, `edge`, `firefox`).
+- Marker-driven execution (`smoke`, `full`, and category markers).
+
+## Project Structure
 
 ```text
 MP_Performance/
 ├── salesforce_tab_performance/
-│   ├── config.py
-│   ├── credentials_utils.py
-│   ├── excel_logger.py
-│   ├── performance_utils.py
-│   └── tab_test_runner.py
+│   ├── config.py                 # runtime configuration (iterations, SLA, locators, waits)
+│   ├── credentials_utils.py      # credential bootstrapping from env/.env/Windows storage
+│   ├── performance_utils.py      # timing and tab performance helpers
+│   ├── tab_test_runner.py        # common execution flow used by tests
+│   ├── excel_logger.py           # writes timing results to Excel
+│   └── requirements.txt          # Python dependencies
 ├── tests/
-├── pytest.ini
+│   ├── conftest.py               # WebDriver fixture, browser option, marker auto-tagging
+│   └── test_*_tab_performance.py # per-tab performance tests
+├── docs/
+│   └── JENKINS_SETUP.md          # local Jenkins setup and job guidance
+├── .github/workflows/ci.yml      # GitHub Actions discovery validation
+├── Jenkinsfile                   # parameterized CI/CD pipeline
+├── pytest.ini                    # declared markers
 └── README.md
 ```
 
-## Prerequisites
+## Requirements
 
-- Python 3.10+
-- Google Chrome installed
-- Salesforce credentials for Dakota Marketplace
+- Python 3.10+ (CI currently validates on Python 3.11)
+- One supported browser installed:
+  - Google Chrome, or
+  - Microsoft Edge, or
+  - Mozilla Firefox
+- Network access to the Dakota Salesforce environment
+- Valid Salesforce credentials (`SF_USERNAME`, `SF_PASSWORD`)
 
-## Setup
+## Quick Start (Windows PowerShell)
 
-```bash
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 pip install -r salesforce_tab_performance/requirements.txt
 ```
 
-Set credentials (PowerShell):
+Set credentials for the current shell:
 
 ```powershell
 $env:SF_USERNAME="your_username"
 $env:SF_PASSWORD="your_password"
 ```
 
-Persistent (Windows):
+Set credentials persistently on Windows:
 
 ```powershell
 setx SF_USERNAME "your_username"
 setx SF_PASSWORD "your_password"
 ```
 
-## Run Tests
+Open a new terminal after `setx` so values are loaded.
 
-Run all:
+## Credentials and Environment
 
-```bash
+This project uses `salesforce_tab_performance/credentials_utils.py` to bootstrap credentials before tests execute.
+
+Supported sources (in practical priority order):
+- process environment variables (`SF_USERNAME`, `SF_PASSWORD`),
+- persisted Windows environment values,
+- `.env` file fallback.
+
+If using `.env`, create it in the repository root with:
+
+```env
+SF_USERNAME=your_username
+SF_PASSWORD=your_password
+```
+
+Do not commit real credentials.
+
+## Running Tests
+
+Run full suite:
+
+```powershell
 pytest -q
 ```
 
-Run smoke:
+Run smoke suite:
 
-```bash
+```powershell
 pytest -q -m smoke
 ```
 
-Run category examples:
+Run category suites:
 
-```bash
+```powershell
 pytest -q -m Test
+pytest -q -m accounts
+pytest -q -m contacts
+pytest -q -m documents
+pytest -q -m transactions
 pytest -q -m metro_areas
 pytest -q -m reports
 pytest -q -m custom_dashboards
 ```
 
-Run with Allure output:
+Select browser:
 
-```bash
-pytest --alluredir=allure-results
+```powershell
+pytest -q --browser chrome
+pytest -q --browser edge
+pytest -q --browser firefox
 ```
 
-## Reporting
+Generate Allure results:
 
-- Excel output file: `salesforce_tab_performance/performance_results.xlsx`
-- Iteration rows contain sample timings.
-- Only the run summary row stores SLA benchmark and final PASS/FAIL based on average time.
+```powershell
+pytest -q --alluredir=allure-results
+```
 
-## Configuration
+Discovery/validation checks:
 
-Core runtime settings are in `salesforce_tab_performance/config.py`:
+```powershell
+pytest -q --collect-only
+pytest -q -m smoke --collect-only
+```
 
-- `ITERATIONS`
-- `SLA_SECONDS`
-- `STABILIZATION_WAIT`
-- default start/end XPaths
-- family-specific end locators (metro areas, reports, custom dashboards)
+## Marker Reference
+
+Markers are declared in `pytest.ini` and assigned dynamically in `tests/conftest.py`.
+
+- `smoke`: high-signal smoke subset
+- `full`: applied to all tests
+- `Test`: marketplace home tab family
+- `accounts`, `contacts`, `documents`, `transactions`
+- `metro_areas`, `reports`, `custom_dashboards`
+
+## Runtime Configuration
+
+Main runtime settings are in `salesforce_tab_performance/config.py`, including:
+- timing iteration count,
+- SLA threshold in seconds,
+- stabilization wait strategy,
+- tab-specific locator definitions and completion mode.
+
+Adjust these values to tune sensitivity, benchmark policy, and tab completion conditions.
+
+## Output and Reports
+
+Typical outputs:
+- Excel performance workbook in `salesforce_tab_performance/` (pipeline expects `Dakota Marketplace Performance.xlsx`)
+- Test result artifacts under `test-results/` (JUnit XML, HTML, JSON in CI contexts)
+- Allure raw results in `allure-results/` when enabled
+
+On test failure, Allure attachments include:
+- current URL,
+- page source,
+- screenshot image.
+
+## CI/CD
+
+### GitHub Actions
+
+Workflow: `.github/workflows/ci.yml`
+
+Runs on push/PR to `main` and performs:
+- dependency installation,
+- test discovery validation (`pytest --collect-only`),
+- marker subset discovery checks.
+
+This workflow validates structure and marker health, not full browser performance execution.
+
+### Jenkins Pipeline
+
+Pipeline: `Jenkinsfile`  
+Setup guide: `docs/JENKINS_SETUP.md`
+
+Core Jenkins capabilities:
+- execution modes: `ALL_TABS`, `SMOKE`, `CHECKBOX_SELECTION`,
+- tab-level checkboxes (`TAB_*`) for focused runs,
+- optional infra retry handling,
+- optional Allure publishing,
+- JUnit/HTML/JSON result publication,
+- Excel artifact archiving,
+- optional email summary notifications.
+
+## Troubleshooting
+
+- Credentials not found:
+  - verify `SF_USERNAME` and `SF_PASSWORD` in current shell (`echo $env:SF_USERNAME` in PowerShell).
+- Browser startup errors:
+  - ensure selected browser is installed and updated.
+- Unstable UI execution on Jenkins Windows service agents:
+  - run the agent in an interactive session or use a dedicated UI node.
+- Empty/partial test selection:
+  - run `pytest -q --collect-only` and confirm marker names match `pytest.ini`.
 
 ## Contributing
 
 See `CONTRIBUTING.md` for branch, testing, and PR guidance.
-
-## CI/CD (Jenkins)
-
-This repository includes a root `Jenkinsfile` with a professional, parameterized pipeline.
-
-- Local Jenkins setup guide: `docs/JENKINS_SETUP.md`
-- Supports modes: `ALL_TABS`, `SMOKE`, and `CHECKBOX_SELECTION`
-- Archives JUnit + Allure + Excel artifacts
 
 ## License
 
