@@ -972,7 +972,6 @@ ${infraSkipLine}
 def sendEmailNotification(String buildStatus, String defaultEmail, String additionalEmails) {
     def stats = getTestStatistics()
     def failedTests = getFailedTestNames()
-    def skippedInfraTests = getSkippedInfraTestNames()
     def actualStatus = currentBuild.result ?: buildStatus
 
     // Preserve Jenkins infra/build failures as source of truth.
@@ -1013,14 +1012,6 @@ def sendEmailNotification(String buildStatus, String defaultEmail, String additi
             "<div style=\"margin:0 0 6px;padding:7px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;\">${item}</div>"
         }.join('')
         : '<span style="color:#065f46;font-weight:600;">No failed tests or tab timeouts were detected in this run.</span>'
-    def cleanedSkippedInfraTests = skippedInfraTests.collect { name ->
-        normalizeFailedTestNameToTab(name ?: '').trim()
-    }.findAll { it }
-    def skippedInfraSummary = cleanedSkippedInfraTests
-        ? cleanedSkippedInfraTests.collect { item ->
-            "<div style=\"margin:0 0 6px;padding:7px 10px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:8px;color:#4c1d95;\">${item}</div>"
-        }.join('')
-        : '<span style="color:#64748b;">No infrastructure skips in this run.</span>'
 
     def statusCfg = [
         SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
@@ -1069,12 +1060,8 @@ def sendEmailNotification(String buildStatus, String defaultEmail, String additi
                   <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;color:#0f766e;font-weight:700;">${passRate}%</td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);border-bottom:1px solid #bfdbfe;"><strong>Failed Tests / Affected Tabs</strong></td>
-                  <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;line-height:1.45;">${failedTestSummary}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);"><strong>Skipped (Infrastructure)</strong></td>
-                  <td style="padding:10px 12px;line-height:1.45;">${skippedInfraSummary}</td>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);"><strong>Failed Tests / Affected Tabs</strong></td>
+                  <td style="padding:10px 12px;line-height:1.45;">${failedTestSummary}</td>
                 </tr>
               </table>
             </td>
