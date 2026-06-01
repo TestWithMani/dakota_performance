@@ -1,5 +1,6 @@
 selenium
 pytest
 pytest-xdist
+pytest-rerunfailures
 allure-pytest
 openpyxl

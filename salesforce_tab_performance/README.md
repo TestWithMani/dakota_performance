@@ -14,6 +14,7 @@ For complete setup and execution instructions, use the repository root guide:
 - `tab_test_runner.py`: shared test flow (login -> navigate -> iterate -> assert/log)
 - `tabs_registry.py`: central tab key -> display name/url/end-condition metadata
 - `excel_logger.py`: structured Excel output with run summary SLA evaluation
+- `infra_errors.py`: shared detection for WebDriver/browser infrastructure failures (used by pytest skip-after-retry logic)
 
 Update tab names, URLs, or special end locators in `tabs_registry.py`.
 

@@ -20,6 +20,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from salesforce_tab_performance.credentials_utils import bootstrap_credentials
+from salesforce_tab_performance.infra_errors import (
+    INFRA_SKIP_PREFIX,
+    infrastructure_error_summary,
+    is_infrastructure_error,
+)
 
 SMOKE_TEST_FILES = {
     "test_accounts_tab_performance.py",
@@ -116,19 +121,31 @@ def pytest_collection_modifyitems(items):
             item.add_marker(pytest.mark.custom_dashboards)
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    """Attach browser diagnostics to Allure when test execution fails."""
-    outcome = yield
-    report = outcome.get_result()
+def _configured_reruns(item) -> int:
+    """Return --reruns count when pytest-rerunfailures is active."""
+    for option_name in ("reruns", "--reruns"):
+        try:
+            value = item.config.getoption(option_name, default=0)
+        except (TypeError, ValueError):
+            continue
+        try:
+            return max(int(value or 0), 0)
+        except (TypeError, ValueError):
+            continue
+    return 0
 
-    if report.when != "call" or report.passed:
-        return
 
-    driver = item.funcargs.get("driver")
-    if not driver:
-        return
+def _infra_reruns_exhausted(item) -> bool:
+    """True when pytest-rerunfailures will not run another attempt."""
+    reruns = _configured_reruns(item)
+    if reruns <= 0:
+        return False
+    execution_count = getattr(item, "execution_count", 1)
+    return execution_count >= reruns + 1
 
+
+def _attach_failure_diagnostics(item, driver) -> None:
+    """Attach URL, page source, and screenshot for real tab failures."""
     try:
         allure.attach(
             body=driver.current_url,
@@ -155,3 +172,40 @@ def pytest_runtest_makereport(item, call):
         )
     except Exception:
         pass
+
+
+@pytest.hookimpl(hookwrapper=True, trylast=True)
+def pytest_runtest_makereport(item, call):
+    """Rerun via Jenkins handles infra errors; skip in reports if still failing after retries."""
+    outcome = yield
+    report = outcome.get_result()
+
+    if call.when != "call" or not report.failed:
+        return
+
+    exc = call.excinfo.value if call.excinfo else None
+    if is_infrastructure_error(exc):
+        if not _infra_reruns_exhausted(item):
+            # Rerun pending: avoid screenshot/page-source calls on a dead WebDriver session.
+            return
+
+        attempts = getattr(item, "execution_count", 1)
+        reruns = _configured_reruns(item)
+        reason = (
+            f"{INFRA_SKIP_PREFIX} WebDriver/browser connection issue after "
+            f"{attempts} attempt(s) (configured reruns={reruns}): "
+            f"{infrastructure_error_summary(exc)}"
+        )
+        report.outcome = "skipped"
+        report.longrepr = reason
+        allure.dynamic.tag("infra_skip")
+        allure.attach(
+            body=reason,
+            name="Infrastructure Skip",
+            attachment_type=allure.attachment_type.TEXT,
+        )
+        return
+
+    driver = item.funcargs.get("driver")
+    if driver:
+        _attach_failure_diagnostics(item, driver)

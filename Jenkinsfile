@@ -448,6 +448,12 @@ def buildPytestCommand(
             parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?ElementClickInterceptedException'
             parts << '--only-rerun=(selenium\\.common\\.exceptions\\.)?WebDriverException'
             parts << '--only-rerun=SessionNotCreatedException'
+            parts << '--only-rerun=urllib3\\.exceptions\\.ReadTimeoutError'
+            parts << '--only-rerun=ReadTimeoutError'
+            parts << '--only-rerun=HTTPConnectionPool\\(host='
+            parts << '--only-rerun=Read timed out'
+            parts << '--only-rerun=TimeoutError'
+            parts << '--only-rerun=timed out'
             parts << '--only-rerun=disconnected:\\s+not\\s+connected\\s+to\\s+DevTools'
             parts << '--only-rerun=chrome\\s+not\\s+reachable'
             parts << '--only-rerun=ERR_CONNECTION_RESET'
@@ -739,6 +745,69 @@ def getFailedTestNames() {
     return failures.unique()
 }
 
+def getSkippedInfraTestNames() {
+    def skipped = []
+    def junitPath = env.PYTEST_JUNIT ?: 'test-results/pytest.xml'
+    if (fileExists(junitPath)) {
+        try {
+            def xmlText = readFile(junitPath)
+            def matcher = (xmlText =~ /(?si)<testcase\b([^>]*)>(?:(?!<\/testcase>).)*<skipped\b[^>]*message=(["'])(.*?)\2/)
+            while (matcher.find()) {
+                def message = (matcher.group(3) ?: '').trim()
+                if (!message.contains('INFRA_SKIP:')) {
+                    continue
+                }
+                def attrs = matcher.group(1) ?: ''
+                def nameMatcher = (attrs =~ /\bname=(["'])(.*?)\1/)
+                def classMatcher = (attrs =~ /\bclassname=(["'])(.*?)\1/)
+                def name = nameMatcher.find() ? nameMatcher.group(2)?.trim() : ''
+                def className = classMatcher.find() ? classMatcher.group(2)?.trim() : ''
+                def candidate = name
+                if (
+                    (!candidate || !(candidate ==~ /(?i).*(tab|dashboard|metro|reports|documents|accounts|contacts|transactions).*/ || candidate.startsWith('test_')))
+                    && className
+                ) {
+                    candidate = className.tokenize('.').last()
+                }
+                if (candidate) {
+                    skipped << candidate
+                }
+            }
+        } catch (Exception ex) {
+            echo "Could not parse infra-skipped test names from JUnit XML: ${ex.message}"
+        }
+    }
+
+    def reportPath = env.PYTEST_JSON ?: 'test-results/report.json'
+    if (fileExists(reportPath)) {
+        try {
+            def jsonText = readFile(reportPath)
+            def testMatcher = (jsonText =~ /"nodeid"\s*:\s*"((?:\\.|[^"\\])*)".*?"outcome"\s*:\s*"skipped".*?"longrepr"\s*:\s*"((?:\\.|[^"\\])*)"/)
+            while (testMatcher.find()) {
+                def longrepr = (testMatcher.group(2) ?: '')
+                    .replaceAll(/\\n/, '\n')
+                    .replaceAll(/\\"/, '"')
+                    .trim()
+                if (!longrepr.contains('INFRA_SKIP:')) {
+                    continue
+                }
+                def nodeId = (testMatcher.group(1) ?: '')
+                    .replaceAll(/\\\//, '/')
+                    .replaceAll(/\\"/, '"')
+                    .trim()
+                def displayName = extractDisplayNameFromNodeId(nodeId)
+                if (displayName) {
+                    skipped << displayName
+                }
+            }
+        } catch (Exception ex) {
+            echo "Could not parse infra-skipped test names from pytest JSON: ${ex.message}"
+        }
+    }
+
+    return skipped.unique()
+}
+
 def getFinalOutcomesFromPytestJson() {
     def reportPath = env.PYTEST_JSON ?: 'test-results/report.json'
     def emptyStats = [total: 0, passed: 0, failed: 0, skipped: 0]
@@ -874,12 +943,17 @@ def extractIntFromXmlAttribute(String xmlText, String attr) {
 
 def logTestSummaryToConsole(String label = 'Test summary') {
     def stats = getTestStatistics()
+    def skippedInfraTests = getSkippedInfraTestNames()
+    def infraSkipLine = skippedInfraTests
+        ? "Infra skipped tabs: ${skippedInfraTests.join(', ')}"
+        : 'Infra skipped tabs: none'
     echo """
 ================ ${label} ================
 Total  : ${stats.total}
 Passed : ${stats.passed}
 Failed : ${stats.failed}
 Skipped: ${stats.skipped}
+${infraSkipLine}
 ==========================================
 """.stripIndent()
 }
@@ -887,6 +961,7 @@ Skipped: ${stats.skipped}
 def sendEmailNotification(String buildStatus, String defaultEmail, String additionalEmails) {
     def stats = getTestStatistics()
     def failedTests = getFailedTestNames()
+    def skippedInfraTests = getSkippedInfraTestNames()
     def actualStatus = currentBuild.result ?: buildStatus
 
     // Preserve Jenkins infra/build failures as source of truth.
@@ -927,6 +1002,14 @@ def sendEmailNotification(String buildStatus, String defaultEmail, String additi
             "<div style=\"margin:0 0 6px;padding:7px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;\">${item}</div>"
         }.join('')
         : '<span style="color:#065f46;font-weight:600;">No failed tests or tab timeouts were detected in this run.</span>'
+    def cleanedSkippedInfraTests = skippedInfraTests.collect { name ->
+        normalizeFailedTestNameToTab(name ?: '').trim()
+    }.findAll { it }
+    def skippedInfraSummary = cleanedSkippedInfraTests
+        ? cleanedSkippedInfraTests.collect { item ->
+            "<div style=\"margin:0 0 6px;padding:7px 10px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:8px;color:#4c1d95;\">${item}</div>"
+        }.join('')
+        : '<span style="color:#64748b;">No infrastructure skips in this run.</span>'
 
     def statusCfg = [
         SUCCESS : [bg: '#ecfdf5', border: '#10b981', text: '#065f46', pillBg: '#dcfce7'],
@@ -975,8 +1058,12 @@ def sendEmailNotification(String buildStatus, String defaultEmail, String additi
                   <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;color:#0f766e;font-weight:700;">${passRate}%</td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);"><strong>Failed Tests / Affected Tabs</strong></td>
-                  <td style="padding:10px 12px;line-height:1.45;">${failedTestSummary}</td>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);border-bottom:1px solid #bfdbfe;"><strong>Failed Tests / Affected Tabs</strong></td>
+                  <td style="padding:10px 12px;border-bottom:1px solid #dbe3f3;line-height:1.45;">${failedTestSummary}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 12px;background:linear-gradient(180deg,#dbeafe 0%,#bfdbfe 100%);"><strong>Skipped (Infrastructure)</strong></td>
+                  <td style="padding:10px 12px;line-height:1.45;">${skippedInfraSummary}</td>
                 </tr>
               </table>
             </td>

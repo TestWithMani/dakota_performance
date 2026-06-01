@@ -203,6 +203,15 @@ Core Jenkins capabilities:
 - Excel artifact archiving,
 - optional email summary notifications.
 
+## Infrastructure Failures (WebDriver Timeouts)
+
+Jenkins can automatically **retry** and then **skip** browser/driver infrastructure failures (for example `ReadTimeoutError` talking to `localhost` chromedriver) when:
+
+- `ENABLE_INFRA_RETRY=true`
+- `INFRA_RETRY_COUNT` is at least `1`
+
+Skipped infrastructure tests appear in Allure/JUnit as **skipped** (reason prefix `INFRA_SKIP:`), not failed. Tab SLA/assertion failures still fail the run.
+
 ## Troubleshooting
 
 - Credentials not found:

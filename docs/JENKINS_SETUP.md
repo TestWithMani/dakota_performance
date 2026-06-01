@@ -56,9 +56,10 @@ This pipeline uses checkbox-driven test selection:
 - `RUN_ALLURE`
   - Publish Allure report from `allure-results`.
 - `ENABLE_INFRA_RETRY`
-  - Enables flaky infra retry for Selenium-style failures.
+  - Enables flaky infra retry for Selenium-style failures (including WebDriver `ReadTimeoutError` / localhost connection timeouts).
 - `INFRA_RETRY_COUNT`
   - Number of allowed infra retries (string integer, default `1`).
+  - After retries are exhausted, infrastructure failures are reported as **skipped** (not failed) in JUnit/Allure/email, so the build can still succeed when only infra flakes remain.
 - `FRESH_REPORT_OUTPUT`
   - Clears previous report artifacts and produces fresh outputs.
 - `SEND_EMAIL`
@@ -91,7 +92,18 @@ Pipeline archives:
   - `salesforce_tab_performance/Dakota Marketplace Performance.xlsx` (preferred)
   - fallback sources are auto-resolved by pipeline
 
-## 7) Notes
+## 7) Infrastructure Retry and Skip Behavior
+
+When `ENABLE_INFRA_RETRY=true`:
+
+1. Matching WebDriver/browser failures (for example `urllib3.exceptions.ReadTimeoutError` on `localhost`) are retried via `pytest-rerunfailures`.
+2. If the same infrastructure failure still occurs after `INFRA_RETRY_COUNT` retries, the test is marked **skipped** with reason prefix `INFRA_SKIP:`.
+3. Jenkins email includes a **Skipped (Infrastructure)** section listing affected tabs.
+4. Real tab SLA/assertion failures are still reported as **failed**.
+
+Keep `PARALLEL_WORKERS=1` unless you have validated xdist + rerun behavior on your agent.
+
+## 8) Notes
 
 - UI tests require a stable browser session on the Jenkins agent.
 - If your Jenkins agent runs as a Windows service and UI tests are unstable, run Jenkins agent interactively or use a dedicated test node.
