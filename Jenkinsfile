@@ -394,6 +394,16 @@ def getEffectiveRunConfig() {
     ]
 }
 
+def shellQuotePytestArgs(List parts) {
+    // Windows cmd splits on spaces unless quoted; keep pytest args intact.
+    parts.collect { arg ->
+        if (!arg.contains(' ')) {
+            return arg
+        }
+        return '"' + arg.replace('"', '""') + '"'
+    }.join(' ')
+}
+
 def buildPytestCommand(
     List selectedTestFiles,
     boolean runAllure,
@@ -451,9 +461,10 @@ def buildPytestCommand(
             parts << '--only-rerun=urllib3\\.exceptions\\.ReadTimeoutError'
             parts << '--only-rerun=ReadTimeoutError'
             parts << '--only-rerun=HTTPConnectionPool\\(host='
-            parts << '--only-rerun=Read timed out'
+            // Use \\s+ regex (no literal spaces) so Windows cmd does not split arguments.
+            parts << '--only-rerun=Read\\s+timed\\s+out'
             parts << '--only-rerun=TimeoutError'
-            parts << '--only-rerun=timed out'
+            parts << '--only-rerun=timed\\s+out'
             parts << '--only-rerun=disconnected:\\s+not\\s+connected\\s+to\\s+DevTools'
             parts << '--only-rerun=chrome\\s+not\\s+reachable'
             parts << '--only-rerun=ERR_CONNECTION_RESET'
@@ -469,7 +480,7 @@ def buildPytestCommand(
         parts.addAll(selectedTestFiles)
     }
 
-    return parts.join(' ')
+    return shellQuotePytestArgs(parts)
 }
 
 def resolveSelectedTestFiles(String selectionMode, def paramsObj) {
